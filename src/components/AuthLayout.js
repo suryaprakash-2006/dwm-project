@@ -1,24 +1,30 @@
 import React from "react";
 import Sidebar from "./Sidebar";
 import Navbar from "./Navbar";
-import Header from "./Header";
+import "../styles/theme.css";
 
 function AuthLayout({ user, onLogout, children }) {
+
   return (
-    <div className="d-flex">
-      {/* Sidebar */}
+
+    <div className="app-layout">
+
       <Sidebar role={user.role} onLogout={onLogout} />
 
-      {/* Main content */}
-      <div className="flex-grow-1">
-        <Navbar />
-        <Header user={user} />
-        <div className="p-4" style={{ backgroundColor: "#f3f4f6", minHeight: "100vh" }}>
+      <div className="content-area">
+
+        <Navbar user={user} />
+
+        <div className="page-container">
           {children}
         </div>
+
       </div>
+
     </div>
+
   );
+
 }
 
 export default AuthLayout;

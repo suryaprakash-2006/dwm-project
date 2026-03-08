@@ -2,151 +2,124 @@ import React, { useState } from "react";
 import "../../styles/theme.css";
 
 function TimeEntry({ user }) {
-  const [regularHours, setRegularHours] = useState(0);
-  const [overtimeHours, setOvertimeHours] = useState(0);
 
-  const totalHours = regularHours + overtimeHours;
+  const machines = [
+    "CNC Lathe",
+    "Hydraulic Press",
+    "PLC Panel"
+  ];
 
-  /* -------- VALIDATION HANDLERS -------- */
-  const handleRegularChange = (e) => {
-    const value = Number(e.target.value);
-    if (value >= 0 && value <= 8) {
-      setRegularHours(value);
-    }
-  };
+  const [machine, setMachine] = useState("");
+  const [category, setCategory] = useState("");
+  const [hours, setHours] = useState("");
+  const [overtime, setOvertime] = useState("");
 
-  const handleOvertimeChange = (e) => {
-    const value = Number(e.target.value);
-    if (value >= 0 && value <= 8) {
-      setOvertimeHours(value);
-    }
+  const handleSubmit = (e) => {
+
+    e.preventDefault();
+
+    const entry = {
+      email: user.email,
+      machine,
+      category,
+      hours,
+      overtime,
+      date: new Date().toLocaleDateString()
+    };
+
+    console.log("Saved Entry:", entry);
+
+    alert("Time entry submitted");
+
+    setMachine("");
+    setCategory("");
+    setHours("");
+    setOvertime("");
   };
 
   return (
+
     <div className="page">
-      <div className="container-fluid">
-        <h3 className="mb-3">Daily Time Entry</h3>
 
-        <div className="row">
-          {/* LEFT FORM */}
-          <div className="col-md-8">
-            <div className="card p-3 mb-4 shadow-sm">
+      <h3>Daily Time Entry</h3>
 
-              {/* Email */}
-              <div className="mb-3">
-                <label className="form-label">Employee Email</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  value={user?.email || ""}
-                  readOnly
-                />
-              </div>
+      <div className="card p-4">
 
-              {/* Present Status */}
-              <div className="mb-3">
-                <label className="form-label">Employee Present Status</label>
-                <select className="form-select">
-                  <option>P (Present)</option>
-                  <option>L (Leave)</option>
-                  <option>OD (On Duty)</option>
-                </select>
-              </div>
+        <form onSubmit={handleSubmit}>
 
-              {/* Category */}
-              <div className="mb-3">
-                <label className="form-label">Category</label>
-                <select className="form-select">
-                  <option>Task against order</option>
-                  <option>Improvements / Development</option>
-                  <option>Complaints</option>
-                  <option>New enquiry / RFQ</option>
-                  <option>LBE</option>
-                  <option>Supporting Activities</option>
-                  <option>General</option>
-                  <option>Travel / OD</option>
-                </select>
-              </div>
+          <label>Employee Email</label>
 
-              {/* Sub Category */}
-              <div className="mb-3">
-                <label className="form-label">
-                  Sub-Category (Assigned by Admin)
-                </label>
-                <select className="form-select">
-                  <option>Sub Category 1</option>
-                  <option>Sub Category 2</option>
-                  <option>Sub Category 3</option>
-                </select>
-              </div>
+          <input
+            className="form-control mb-3"
+            value={user.email}
+            readOnly
+          />
 
-              {/* Regular Hours */}
-              <div className="mb-3">
-                <label className="form-label">
-                  Regular Working Hours (8-hour shift)
-                </label>
-                <input
-                  type="number"
-                  className="form-control"
-                  min="0"
-                  max="8"
-                  value={regularHours}
-                  onChange={handleRegularChange}
-                />
-                <small className="text-muted">
-                  Maximum allowed: 8 hours
-                </small>
-              </div>
+          <label>Machine Worked On</label>
 
-              {/* Overtime Hours */}
-              <div className="mb-3">
-                <label className="form-label">Overtime Hours</label>
-                <input
-                  type="number"
-                  className="form-control"
-                  min="0"
-                  max="8"
-                  value={overtimeHours}
-                  onChange={handleOvertimeChange}
-                />
-                <small className="text-muted">
-                  Maximum allowed: 8 hours
-                </small>
-              </div>
+          <select
+            className="form-control mb-3"
+            value={machine}
+            onChange={(e) => setMachine(e.target.value)}
+            required
+          >
 
-              {/* Submit Button */}
-              <button className="btn btn-primary w-100">
-                Save / Submit
-              </button>
-            </div>
-          </div>
+            <option value="">Select Machine</option>
 
-          {/* RIGHT SUMMARY */}
-          <div className="col-md-4">
-            <div className="card p-3 shadow-sm">
-              <h6 className="mb-3">Daily Summary</h6>
+            {machines.map((m, i) => (
+              <option key={i}>{m}</option>
+            ))}
 
-              <ul className="list-group">
-                <li className="list-group-item d-flex justify-content-between">
-                  Regular Hours <span>{regularHours}</span>
-                </li>
-                <li className="list-group-item d-flex justify-content-between">
-                  Overtime Hours <span>{overtimeHours}</span>
-                </li>
-                <li className="list-group-item d-flex justify-content-between">
-                  Total Hours <span>{totalHours}</span>
-                </li>
-              </ul>
+          </select>
 
-              <small className="text-muted d-block mt-2">
-                * Every shift contains 8 regular hours
-              </small>
-            </div>
-          </div>
-        </div>
+          <label>Task Category</label>
+
+          <select
+            className="form-control mb-3"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+          >
+
+            <option value="">Select Task</option>
+            <option>Machine Work</option>
+            <option>Maintenance</option>
+            <option>Inspection</option>
+            <option>Reporting</option>
+
+          </select>
+
+          <label>Regular Working Hours</label>
+
+          <input
+            type="number"
+            className="form-control mb-3"
+            value={hours}
+            onChange={(e) => setHours(e.target.value)}
+            placeholder="Enter hours"
+          />
+
+          <label>Overtime Hours</label>
+
+          <input
+            type="number"
+            className="form-control mb-3"
+            value={overtime}
+            onChange={(e) => setOvertime(e.target.value)}
+            placeholder="Enter overtime"
+          />
+
+          <button className="btn btn-primary w-100">
+            Submit Entry
+          </button>
+
+        </form>
+
       </div>
+
     </div>
+
   );
+
 }
 
 export default TimeEntry;

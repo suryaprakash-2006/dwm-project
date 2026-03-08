@@ -1,87 +1,84 @@
 import React, { useState } from "react";
 import "../../styles/theme.css";
+import { ROLES } from "../../roles";
 
-function EmployeeManagement() {
-  const [employees, setEmployees] = useState([
-    { id: 1, name: "Arjun Kumar", dept: "Engineering", active: true, pending: false },
-    { id: 2, name: "Meera Iyer", dept: "HR", active: false, pending: false },
-    { id: 3, name: "Rahul Sharma", dept: "Finance", active: true, pending: false },
+function EmployeeManagement({ user }) {
+
+  const departments = ["Engineering", "HR", "Finance"];
+
+  const [selectedDept, setSelectedDept] = useState(
+    user.role === ROLES.ADMIN ? user.department : "Engineering"
+  );
+
+  const [employees] = useState([
+    { id: 1, name: "Arjun Kumar", dept: "Engineering", active: true },
+    { id: 2, name: "Meera Iyer", dept: "HR", active: false },
+    { id: 3, name: "Rahul Sharma", dept: "Finance", active: true }
   ]);
 
-  /* -------- SEND APPROVAL REQUEST (UI DEMO ONLY) -------- */
-  const requestToggle = (id) => {
-    setEmployees((prev) =>
-      prev.map((emp) =>
-        emp.id === id
-          ? { ...emp, pending: true }
-          : emp
-      )
-    );
-  };
+  const filteredEmployees =
+    user.role === ROLES.ADMIN
+      ? employees.filter(e => e.dept === user.department)
+      : employees.filter(e => e.dept === selectedDept);
 
   return (
+
     <div className="page">
-      <div className="container-fluid">
-        <h3 className="mb-3">Employee Management</h3>
 
-        <div className="card shadow-sm">
-          <div className="table-responsive">
-            <table className="table table-bordered align-middle mb-0">
-              <thead className="table-light">
-                <tr>
-                  <th>Name</th>
-                  <th>Department</th>
-                  <th>Status</th>
-                  <th>Toggle</th>
-                </tr>
-              </thead>
-              <tbody>
-                {employees.map((emp) => (
-                  <tr key={emp.id}>
-                    <td>{emp.name}</td>
-                    <td>{emp.dept}</td>
+      <h3>Employee Management</h3>
 
-                    <td>
-                      {emp.pending ? (
-                        <span className="text-warning fw-semibold">
-                          Pending Approval
-                        </span>
-                      ) : emp.active ? (
-                        <span className="text-success">Active</span>
-                      ) : (
-                        <span className="text-danger">Inactive</span>
-                      )}
-                    </td>
+      {user.role === ROLES.SUPER_ADMIN && (
 
-                    <td>
-                      {!emp.pending ? (
-                        <button
-                          className="btn btn-sm btn-primary"
-                          onClick={() => requestToggle(emp.id)}
-                        >
-                          {emp.active ? "Deactivate" : "Activate"}
-                        </button>
-                      ) : (
-                        <button
-                          className="btn btn-sm btn-secondary"
-                          disabled
-                        >
-                          Request Sent
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        <div className="mb-3">
+
+          <label>Select Department</label>
+
+          <select
+            className="form-select"
+            value={selectedDept}
+            onChange={(e) => setSelectedDept(e.target.value)}
+          >
+
+            {departments.map((d, i) => (
+              <option key={i}>{d}</option>
+            ))}
+
+          </select>
+
         </div>
 
-        {/* Info note for demo clarity */}
-        <div className="mt-3 text-muted small">
-          *Status changes require Super Admin approval.
-        </div>
+      )}
+
+      <div className="card">
+
+        <table className="table table-bordered">
+
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Department</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+
+          <tbody>
+
+            {filteredEmployees.map(emp => (
+
+              <tr key={emp.id}>
+                <td>{emp.name}</td>
+                <td>{emp.dept}</td>
+                <td>{emp.active ? "Active" : "Inactive"}</td>
+              </tr>
+
+            ))}
+
+          </tbody>
+
+        </table>
+
       </div>
+
     </div>
   );
 }

@@ -1,81 +1,121 @@
-import React, { useState } from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import Navbar from "./components/Navbar";
-import Header from "./components/Header";
-import Sidebar from "./components/Sidebar";
+import React, { useState, useEffect } from "react";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+
 import Login from "./components/Login";
+import ProtectedRoute from "./components/ProtectedRoute";
+import AuthLayout from "./components/AuthLayout";
 
-// import all role pages...
-import TimeEntry from "./pages/user/TimeEntry";
-import UserWorkAnalytics from "./pages/user/WorkAnalytics";
-import UserReports from "./pages/user/Reports";
-
-import EmployeeManagement from "./pages/admin/EmployeeManagement";
-import AdminWorkAnalytics from "./pages/admin/WorkAnalytics";
-import AdminReports from "./pages/admin/Reports";
-
-import Employees from "./pages/superadmin/Employees";
-import Departments from "./pages/superadmin/Departments";
 import Machines from "./pages/superadmin/Machines";
+import EmployeeManagement from "./pages/admin/EmployeeManagement";
+import Reports from "./pages/admin/Reports";
 import Analytics from "./pages/superadmin/Analytics";
-import SuperReports from "./pages/superadmin/Reports";
+import TimeEntry from "./pages/user/TimeEntry";
 
-import "./styles/theme.css";
+import { ROLES } from "./roles";
 
 function App() {
+
   const [user, setUser] = useState(null);
 
+  useEffect(() => {
+
+    const savedUser = localStorage.getItem("user");
+
+    if (savedUser) {
+      setUser(JSON.parse(savedUser));
+    }
+
+  }, []);
+
   const logout = () => {
-    setUser(null);
     localStorage.removeItem("user");
+    setUser(null);
   };
 
-  const AuthLayout = ({ children }) => (
-    <div className="d-flex">
-      <Sidebar role={user.role} onLogout={logout} />
-      <div className="main-content w-100">
-        <Header user={user} />
-        <div className="p-3">{children}</div>
-      </div>
-    </div>
-  );
-
   return (
-    <BrowserRouter>
-      <Navbar />
+
+    <Router>
+
       <Routes>
-        <Route path="/login" element={<Login setUser={setUser} />} />
 
-        {user && user.role === "USER" && (
-          <>
-            <Route path="/time-entry" element={<AuthLayout><TimeEntry user={user} /></AuthLayout>} />
-            <Route path="/work-analytics" element={<AuthLayout><UserWorkAnalytics /></AuthLayout>} />
-            <Route path="/reports" element={<AuthLayout><UserReports /></AuthLayout>} />
-          </>
-        )}
+        <Route
+          path="/login"
+          element={<Login setUser={setUser} />}
+        />
 
-        {user && user.role === "ADMIN" && (
-          <>
-            <Route path="/employees" element={<AuthLayout><EmployeeManagement /></AuthLayout>} />
-            <Route path="/work-analytics" element={<AuthLayout><AdminWorkAnalytics /></AuthLayout>} />
-            <Route path="/reports" element={<AuthLayout><AdminReports /></AuthLayout>} />
-          </>
-        )}
+        <Route
+          path="/time-entry"
+          element={
+            <ProtectedRoute
+              user={user}
+              allowedRoles={[ROLES.OPERATOR, ROLES.STAFF]}
+            >
+              <AuthLayout user={user} onLogout={logout}>
+                <TimeEntry user={user} />
+              </AuthLayout>
+            </ProtectedRoute>
+          }
+        />
 
-        {user && user.role === "SUPER_ADMIN" && (
-          <>
-            <Route path="/employees" element={<AuthLayout><Employees /></AuthLayout>} />
-            <Route path="/departments" element={<AuthLayout><Departments /></AuthLayout>} />
-            <Route path="/machines" element={<AuthLayout><Machines /></AuthLayout>} />
-            <Route path="/analytics" element={<AuthLayout><Analytics /></AuthLayout>} />
-            <Route path="/reports" element={<AuthLayout><SuperReports /></AuthLayout>} />
-          </>
-        )}
+        <Route
+          path="/machines"
+          element={
+            <ProtectedRoute
+              user={user}
+              allowedRoles={[ROLES.OPERATOR, ROLES.STAFF]}
+            >
+              <AuthLayout user={user} onLogout={logout}>
+                <Machines user={user} />
+              </AuthLayout>
+            </ProtectedRoute>
+          }
+        />
 
-        <Route path="*" element={<Navigate to="/login" />} />
+        <Route
+          path="/employees"
+          element={
+            <ProtectedRoute
+              user={user}
+              allowedRoles={[ROLES.ADMIN, ROLES.SUPER_ADMIN]}
+            >
+              <AuthLayout user={user} onLogout={logout}>
+                <EmployeeManagement user={user} />
+              </AuthLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/reports"
+          element={
+            <ProtectedRoute user={user}>
+              <AuthLayout user={user} onLogout={logout}>
+                <Reports user={user} />
+              </AuthLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/analytics"
+          element={
+            <ProtectedRoute
+              user={user}
+              allowedRoles={[ROLES.SUPER_ADMIN]}
+            >
+              <AuthLayout user={user} onLogout={logout}>
+                <Analytics />
+              </AuthLayout>
+            </ProtectedRoute>
+          }
+        />
+
       </Routes>
-    </BrowserRouter>
+
+    </Router>
+
   );
+
 }
 
 export default App;

@@ -1,46 +1,108 @@
 import React from "react";
-import { Pie, Bar, Line } from "react-chartjs-2";
+import "../../styles/theme.css";
 import {
   Chart as ChartJS,
   CategoryScale,
   LinearScale,
   BarElement,
   ArcElement,
-  PointElement,
   LineElement,
+  PointElement,
   Tooltip,
-  Legend,
+  Legend
 } from "chart.js";
-import "../../styles/theme.css";
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, PointElement, LineElement, Tooltip, Legend);
+import { Pie, Bar, Line } from "react-chartjs-2";
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  ArcElement,
+  LineElement,
+  PointElement,
+  Tooltip,
+  Legend
+);
 
 function Analytics() {
+
   const pieData = {
-    labels: ["Engineering", "HR", "Finance"],
-    datasets: [{ data: [50, 30, 20], backgroundColor: ["#2563EB", "#1D4ED8", "#60A5FA"] }],
+    labels: ["Machine Work", "Maintenance", "Inspection", "Reports"],
+    datasets: [
+      {
+        data: [40, 25, 20, 15],
+        backgroundColor: ["#ff6384", "#36a2eb", "#ffce56", "#4bc0c0"]
+      }
+    ]
   };
 
   const barData = {
-    labels: ["Arjun", "Meera", "Rahul"],
-    datasets: [{ label: "Hours", data: [40, 25, 35], backgroundColor: "#2563EB" }],
+    labels: ["Operator1", "Operator2", "Operator3", "Operator4"],
+    datasets: [
+      {
+        label: "Hours",
+        data: [120, 90, 75, 60],
+        backgroundColor: "#36a2eb"
+      }
+    ]
   };
 
   const lineData = {
-    labels: ["Day 1", "Day 2", "Day 3", "Day 4"],
-    datasets: [{ label: "Trend", data: [6, 8, 7, 9], borderColor: "#2563EB", tension: 0.3 }],
+    labels: ["Week1", "Week2", "Week3", "Week4"],
+    datasets: [
+      {
+        label: "Work Trend",
+        data: [30, 40, 35, 50],
+        borderColor: "#ff6384"
+      }
+    ]
   };
 
+  const overtimeHours = 32;
+
   return (
+
     <div className="page">
-      <h3>Analytics</h3>
+
+      <h3>Analytics Dashboard</h3>
+
       <div className="row">
-        <div className="col-md-4"><div className="card"><h6>Department Distribution</h6><Pie data={pieData} /></div></div>
-        <div className="col-md-4"><div className="card"><h6>Employee Hours</h6><Bar data={barData} /></div></div>
-        <div className="col-md-4"><div className="card"><h6>Hours Trend</h6><Line data={lineData} /></div></div>
+
+        <div className="col-md-6 mb-4">
+          <div className="card p-3">
+            <h5>Task Distribution</h5>
+            <Pie data={pieData} />
+          </div>
+        </div>
+
+        <div className="col-md-6 mb-4">
+          <div className="card p-3">
+            <h5>Employee Hours</h5>
+            <Bar data={barData} />
+          </div>
+        </div>
+
+        <div className="col-md-6 mb-4">
+          <div className="card p-3">
+            <h5>Weekly Trend</h5>
+            <Line data={lineData} />
+          </div>
+        </div>
+
+        <div className="col-md-6 mb-4">
+          <div className="card p-3 text-center">
+            <h5>Overtime Hours</h5>
+            <h2>{overtimeHours}</h2>
+          </div>
+        </div>
+
       </div>
+
     </div>
+
   );
+
 }
 
 export default Analytics;

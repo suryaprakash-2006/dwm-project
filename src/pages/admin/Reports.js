@@ -1,60 +1,131 @@
-import React from "react";
+import React, { useState } from "react";
 import "../../styles/theme.css";
 
 function Reports() {
+
+  const financialYears = [
+    "2023-2024",
+    "2024-2025",
+    "2025-2026"
+  ];
+
+  const months = [
+    "March","April","May","June",
+    "July","August","September",
+    "October","November","December",
+    "January","February"
+  ];
+
+  const [year, setYear] = useState("2025-2026");
+  const [month, setMonth] = useState("March");
+
+  const entries = [
+    { date: "01-03-2026", employee: "Arjun", hours: 8 },
+    { date: "02-03-2026", employee: "Arjun", hours: 9 },
+    { date: "03-03-2026", employee: "Arjun", hours: 7 },
+    { date: "04-03-2026", employee: "Arjun", hours: 10 }
+  ];
+
+  const totalHours = entries.reduce((sum, e) => sum + e.hours, 0);
+
+  const overtimeHours = entries
+    .filter(e => e.hours > 8)
+    .reduce((sum, e) => sum + (e.hours - 8), 0);
+
   return (
+
     <div className="page">
-      <h3>Reports (Admin)</h3>
+
+      <h3>Monthly Reports</h3>
+
       <div className="row mb-3">
-        <div className="col-md-4">
-          <label>Department:</label>
-          <select className="form-select">
-            <option>Engineering</option>
-            <option>HR</option>
-            <option>Finance</option>
+
+        <div className="col-md-3">
+
+          <label>Financial Year</label>
+
+          <select
+            className="form-select"
+            value={year}
+            onChange={(e) => setYear(e.target.value)}
+          >
+
+            {financialYears.map((y,i) => (
+              <option key={i}>{y}</option>
+            ))}
+
           </select>
+
         </div>
-        <div className="col-md-4">
-          <label>Employee:</label>
-          <select className="form-select">
-            <option>Arjun Kumar</option>
-            <option>Meera Iyer</option>
-            <option>Rahul Sharma</option>
+
+        <div className="col-md-3">
+
+          <label>Month</label>
+
+          <select
+            className="form-select"
+            value={month}
+            onChange={(e) => setMonth(e.target.value)}
+          >
+
+            {months.map((m,i) => (
+              <option key={i}>{m}</option>
+            ))}
+
           </select>
+
         </div>
-        <div className="col-md-4">
-          <label>Month:</label>
-          <select className="form-select">
-            <option>January 2026</option>
-            <option>February 2026</option>
-            <option>March 2026</option>
-          </select>
-        </div>
+
       </div>
 
-      <div className="card mb-3">
+      <div className="row mb-4">
+
+        <div className="col-md-3">
+          <div className="card p-3">
+            <p>Total Hours</p>
+            <h4>{totalHours}</h4>
+          </div>
+        </div>
+
+        <div className="col-md-3">
+          <div className="card p-3">
+            <p>Overtime Hours</p>
+            <h4>{overtimeHours}</h4>
+          </div>
+        </div>
+
+      </div>
+
+      <div className="card">
+
         <table className="table table-bordered">
-          <thead className="table-light">
+
+          <thead>
             <tr>
               <th>Date</th>
               <th>Employee</th>
-              <th>Department</th>
               <th>Hours</th>
-              <th>Status</th>
             </tr>
           </thead>
+
           <tbody>
-            <tr><td>01-02-2026</td><td>Arjun Kumar</td><td>Engineering</td><td>8</td><td>P</td></tr>
-            <tr><td>02-02-2026</td><td>Meera Iyer</td><td>HR</td><td>7</td><td>P</td></tr>
+
+            {entries.map((e,i) => (
+
+              <tr key={i}>
+                <td>{e.date}</td>
+                <td>{e.employee}</td>
+                <td>{e.hours}</td>
+              </tr>
+
+            ))}
+
           </tbody>
+
         </table>
+
       </div>
 
-      <div className="d-flex gap-2">
-        <button className="btn btn-outline-primary">Export JSON</button>
-        <button className="btn btn-outline-primary">Export PDF</button>
-        <button className="btn btn-outline-primary">Export Excel</button>
-      </div>
     </div>
   );
 }

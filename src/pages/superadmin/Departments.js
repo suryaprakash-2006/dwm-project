@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import "../../styles/theme.css";
 
 const INITIAL_DEPARTMENTS = [
+<<<<<<< HEAD
   { id: 1,  name: "Marketing - Textile Automation",    headCount: 6, description: "Marketing for textile automation products"  },
   { id: 2,  name: "Marketing - Machine Tooling",       headCount: 5, description: "Marketing for machine tooling division"     },
   { id: 3,  name: "Engineering Design",                headCount: 8, description: "Product & engineering design"               },
@@ -23,6 +24,15 @@ const INITIAL_DEPARTMENTS = [
 ];
 
 const DEPT_ICONS = ["🔧","📣","🖥️","🔬","⚙️","✅","🤝","📋","🏗️","🔩","🏭","⛏️","🛠️","🎨","👥","💡","🚚","📦"];
+=======
+  { id: 1, name: "Engineering", headCount: 4, description: "Product design & development" },
+  { id: 2, name: "HR",          headCount: 3, description: "Human resources & payroll"   },
+  { id: 3, name: "Finance",     headCount: 2, description: "Accounts & financial ops"    },
+  { id: 4, name: "QA",          headCount: 1, description: "Quality assurance"           },
+];
+
+const DEPT_ICONS = ["🔧", "👥", "💼", "✅", "⚙️", "📊", "🏭"];
+>>>>>>> 5ab23cc1e1d41bdb87e83040f6bae0b812622797
 
 export default function Departments() {
   const [departments, setDepartments] = useState(INITIAL_DEPARTMENTS);

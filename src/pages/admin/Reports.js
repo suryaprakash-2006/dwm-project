@@ -1,9 +1,14 @@
+<<<<<<< HEAD
 import React, { useState } from "react";
 import { EMP_OPTIONS, empLabel } from "../../data/masterData";
+=======
+import React from "react";
+>>>>>>> 5ab23cc1e1d41bdb87e83040f6bae0b812622797
 import "../../styles/theme.css";
 
 const StatusBadge = ({ status }) => {
   const map = {
+<<<<<<< HEAD
     P:  { label: "Present",  bg: "#16a34a", text: "#fff" },
     L:  { label: "Leave",    bg: "#dc2626", text: "#fff" },
     OD: { label: "On Duty",  bg: "#d97706", text: "#fff" },
@@ -35,11 +40,38 @@ export default function Reports() {
 
   const filtered = ALL_ROWS.filter((r) => filterEmp === "all" || r.empId === filterEmp);
   const selectedEmpName = EMP_OPTIONS.find((e) => e.id === filterEmp)?.name;
+=======
+    P:  { label: "Present", bg: "#16a34a", text: "#fff" },
+    L:  { label: "Leave",   bg: "#dc2626", text: "#fff" },
+    OD: { label: "On Duty", bg: "#d97706", text: "#fff" },
+  };
+  const s = map[status] || map["P"];
+  return (
+    <span style={{
+      display: "inline-block",
+      background: s.bg, color: s.text,
+      fontSize: 13, fontWeight: 700,
+      padding: "5px 14px", borderRadius: 20,
+      minWidth: 80, textAlign: "center",
+    }}>{s.label}</span>
+  );
+};
+
+function Reports() {
+  const rows = [
+    { date: "01-02-2026", employee: "Arjun Kumar",  dept: "Engineering", hours: 8, status: "P"  },
+    { date: "02-02-2026", employee: "Meera Iyer",   dept: "HR",          hours: 7, status: "P"  },
+    { date: "03-02-2026", employee: "Rahul Sharma", dept: "Finance",     hours: 8, status: "P"  },
+    { date: "04-02-2026", employee: "Arjun Kumar",  dept: "Engineering", hours: 0, status: "L"  },
+    { date: "05-02-2026", employee: "Meera Iyer",   dept: "HR",          hours: 8, status: "OD" },
+  ];
+>>>>>>> 5ab23cc1e1d41bdb87e83040f6bae0b812622797
 
   return (
     <div className="page">
       <h3>Reports</h3>
 
+<<<<<<< HEAD
       {/* Filters — Employee only + Month */}
       <div className="row mb-3 g-3">
         <div className="col-md-5">
@@ -47,16 +79,40 @@ export default function Reports() {
           <select className="form-select" value={filterEmp} onChange={(e) => setFilterEmp(e.target.value)}>
             <option value="all">— All Employees —</option>
             {EMP_OPTIONS.map((e) => <option key={e.id} value={e.id}>{empLabel(e)}</option>)}
+=======
+      <div className="row mb-4 g-3">
+        <div className="col-md-4">
+          <label>Department</label>
+          <select className="form-select">
+            <option>All Departments</option>
+            <option>Engineering</option>
+            <option>HR</option>
+            <option>Finance</option>
+          </select>
+        </div>
+        <div className="col-md-4">
+          <label>Employee</label>
+          <select className="form-select">
+            <option>All Employees</option>
+            <option>Arjun Kumar</option>
+            <option>Meera Iyer</option>
+            <option>Rahul Sharma</option>
+>>>>>>> 5ab23cc1e1d41bdb87e83040f6bae0b812622797
           </select>
         </div>
         <div className="col-md-4">
           <label>Month</label>
+<<<<<<< HEAD
           <select className="form-select" value={month} onChange={(e) => setMonth(e.target.value)}>
+=======
+          <select className="form-select">
+>>>>>>> 5ab23cc1e1d41bdb87e83040f6bae0b812622797
             <option>January 2026</option>
             <option>February 2026</option>
             <option>March 2026</option>
           </select>
         </div>
+<<<<<<< HEAD
         <div className="col-md-3 d-flex align-items-end">
           {filterEmp !== "all" && (
             <button className="btn btn-secondary btn-sm w-100" onClick={() => setFilterEmp("all")}>Clear Filter</button>
@@ -76,20 +132,31 @@ export default function Reports() {
       )}
 
       {/* Table */}
+=======
+      </div>
+
+>>>>>>> 5ab23cc1e1d41bdb87e83040f6bae0b812622797
       <div className="card" style={{ padding: 0 }}>
         <div className="table-responsive">
           <table className="table table-bordered mb-0 align-middle">
             <thead>
               <tr>
                 <th>DATE</th>
+<<<<<<< HEAD
                 <th>EMP ID</th>
                 <th>EMPLOYEE</th>
                 <th>REG HRS</th>
                 <th>OT HRS</th>
+=======
+                <th>EMPLOYEE</th>
+                <th>DEPARTMENT</th>
+                <th>HOURS</th>
+>>>>>>> 5ab23cc1e1d41bdb87e83040f6bae0b812622797
                 <th>STATUS</th>
               </tr>
             </thead>
             <tbody>
+<<<<<<< HEAD
               {filtered.length === 0
                 ? <tr><td colSpan={6} style={{ textAlign: "center", color: "#94a3b8", padding: "28px", fontSize: 14 }}>No records found.</td></tr>
                 : filtered.map((r, i) => (
@@ -103,6 +170,17 @@ export default function Reports() {
                   </tr>
                 ))
               }
+=======
+              {rows.map((r, i) => (
+                <tr key={i}>
+                  <td style={{ fontWeight: 600, color: "#334155" }}>{r.date}</td>
+                  <td style={{ fontWeight: 600, color: "#0f172a" }}>{r.employee}</td>
+                  <td style={{ color: "#475569" }}>{r.dept}</td>
+                  <td style={{ fontWeight: 600, fontFamily: "monospace", color: "#0f172a" }}>{r.hours}</td>
+                  <td><StatusBadge status={r.status} /></td>
+                </tr>
+              ))}
+>>>>>>> 5ab23cc1e1d41bdb87e83040f6bae0b812622797
             </tbody>
           </table>
         </div>
@@ -116,3 +194,8 @@ export default function Reports() {
     </div>
   );
 }
+<<<<<<< HEAD
+=======
+
+export default Reports;
+>>>>>>> 5ab23cc1e1d41bdb87e83040f6bae0b812622797

@@ -74,7 +74,11 @@ function App() {
         {user?.role === "ADMIN" && (
           <>
             <Route path="/employees"      element={<AuthLayout><EmployeeManagement /></AuthLayout>} />
+<<<<<<< HEAD
             <Route path="/work-analytics" element={<AuthLayout><AdminWorkAnalytics user={user} /></AuthLayout>} />
+=======
+            <Route path="/work-analytics" element={<AuthLayout><AdminWorkAnalytics /></AuthLayout>} />
+>>>>>>> 5ab23cc1e1d41bdb87e83040f6bae0b812622797
             <Route path="/reports"        element={<AuthLayout><AdminReports /></AuthLayout>} />
           </>
         )}

@@ -1,10 +1,29 @@
 import React, { useState } from "react";
+<<<<<<< HEAD
 import { DEPARTMENTS, EMPLOYEES as MASTER_EMPS, empLabel } from "../../data/masterData";
 import "../../styles/theme.css";
 
 // All employees grouped by department with role info
 // Using shared master data
 const INITIAL_EMPLOYEES = MASTER_EMPS;
+=======
+import "../../styles/theme.css";
+
+// All employees grouped by department with role info
+const INITIAL_EMPLOYEES = [
+  { id: "SA-01",  name: "Super Admin",    email: "super101@dwm.com",    role: "SUPER_ADMIN", dept: "System",      active: true  },
+  { id: "E-001",  name: "Arjun Kumar",    email: "arjun@dwm.com",       role: "USER",        dept: "Engineering", active: true  },
+  { id: "E-002",  name: "Vikram Das",     email: "vikram@dwm.com",      role: "USER",        dept: "Engineering", active: true  },
+  { id: "E-003",  name: "Suresh Raj",     email: "suresh@dwm.com",      role: "ADMIN",       dept: "Engineering", active: true  },
+  { id: "OP-001", name: "Operator One",   email: "operator101@dwm.com", role: "OPERATOR",    dept: "Engineering", active: true  },
+  { id: "H-001",  name: "Meera Iyer",     email: "meera@dwm.com",       role: "USER",        dept: "HR",          active: false },
+  { id: "H-002",  name: "Priya Nair",     email: "priya@dwm.com",       role: "ADMIN",       dept: "HR",          active: true  },
+  { id: "F-001",  name: "Rahul Sharma",   email: "rahul@dwm.com",       role: "USER",        dept: "Finance",     active: true  },
+  { id: "F-002",  name: "Kiran Bose",     email: "kiran@dwm.com",       role: "USER",        dept: "Finance",     active: true  },
+  { id: "Q-001",  name: "User Staff",     email: "user101@dwm.com",     role: "USER",        dept: "QA",          active: true  },
+  { id: "AD-001", name: "HR Admin",       email: "admin101@dwm.com",    role: "ADMIN",       dept: "HR",          active: true  },
+];
+>>>>>>> 5ab23cc1e1d41bdb87e83040f6bae0b812622797
 
 const ROLE_COLOR = {
   SUPER_ADMIN: { bg: "#fee2e2", color: "#dc2626" },
@@ -27,7 +46,11 @@ export default function Employees() {
     setTimeout(() => setAlert(null), 3000);
   };
 
+<<<<<<< HEAD
   const depts    = ["all", "System", ...DEPARTMENTS];
+=======
+  const depts    = ["all", ...Array.from(new Set(employees.map((e) => e.dept)))];
+>>>>>>> 5ab23cc1e1d41bdb87e83040f6bae0b812622797
   const filtered = filterDept === "all" ? employees : employees.filter((e) => e.dept === filterDept);
 
   const addEmployee = () => {
@@ -122,10 +145,15 @@ export default function Employees() {
               </div>
               <div className="col-md-3">
                 <label>Department</label>
+<<<<<<< HEAD
                 <select className="form-select" value={newEmp.dept} onChange={(e) => setNewEmp({ ...newEmp, dept: e.target.value })}>
                   <option value="">Select department</option>
                   {DEPARTMENTS.map((d) => <option key={d} value={d}>{d}</option>)}
                 </select>
+=======
+                <input className="form-control" placeholder="e.g. Engineering"
+                  value={newEmp.dept} onChange={(e) => setNewEmp({ ...newEmp, dept: e.target.value })} />
+>>>>>>> 5ab23cc1e1d41bdb87e83040f6bae0b812622797
               </div>
             </div>
             <div className="d-flex gap-2 mt-3">

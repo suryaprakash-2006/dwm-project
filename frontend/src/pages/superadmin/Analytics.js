@@ -3,6 +3,7 @@ import { Pie, Bar, Line } from "react-chartjs-2";
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, ArcElement, PointElement, LineElement, Tooltip, Legend } from "chart.js";
 import ChartDataLabels from "chartjs-plugin-datalabels";
 import "../../styles/theme.css";
+import config from "../../config";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, PointElement, LineElement, Tooltip, Legend, ChartDataLabels);
 
@@ -115,7 +116,7 @@ export default function Analytics() {
   // Fetch KPIs (not filterable — global)
   const fetchKpis = async (token) => {
     try {
-      const res = await fetch("http://127.0.0.1:8000/reports/dashboard-kpis", {
+      const res = await fetch(`${config.API_URL}/reports/dashboard-kpis`, {
         headers: { "Authorization": `Bearer ${token}` }
       });
       if (res.ok) setKpis(await res.json());
@@ -132,7 +133,7 @@ export default function Analytics() {
       if (dept && dept !== "all") qs.set("dept", dept);
       if (df) qs.set("date_from", df);
       if (dt) qs.set("date_to", dt);
-      const url = `http://127.0.0.1:8000/reports/analytics-charts${qs.toString() ? "?" + qs.toString() : ""}`;
+      const url = `${config.API_URL}/reports/analytics-charts${qs.toString() ? "?" + qs.toString() : ""}`;
       const res = await fetch(url, {
         headers: { "Authorization": `Bearer ${token}` }
       });
@@ -151,10 +152,9 @@ export default function Analytics() {
         const token = localStorage.getItem("token");
         const headers = { "Authorization": `Bearer ${token}` };
 
-        const deptRes = await fetch("http://127.0.0.1:8000/departments", { headers });
+        const deptRes = await fetch(`${config.API_URL}/departments`, { headers });
         if (deptRes.ok && mounted) setDepartments(await deptRes.json());
-
-        const empRes = await fetch("http://127.0.0.1:8000/employees", { headers });
+        const empRes = await fetch(`${config.API_URL}/employees`, { headers });
         if (empRes.ok && mounted) setEmployees(await empRes.json());
 
         await fetchKpis(token);

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Bar, Pie, Line } from "react-chartjs-2";
 import "chart.js/auto";
+import config from "../config";
 
 const Analytics = () => {
   const today = new Date().toISOString().split("T")[0];
@@ -26,7 +27,7 @@ const Analytics = () => {
       const qs      = new URLSearchParams();
       if (params.dateFrom) qs.set("date_from", params.dateFrom);
       if (params.dateTo)   qs.set("date_to",   params.dateTo);
-      const url = `http://127.0.0.1:8000/time-entries${qs.toString() ? "?" + qs.toString() : ""}`;
+      const url = `${config.API_URL}/time-entries${qs.toString() ? "?" + qs.toString() : ""}`;
       const res = await fetch(url, { headers });
       if (res.ok) {
         const data = await res.json();

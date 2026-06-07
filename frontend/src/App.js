@@ -7,6 +7,7 @@ import Login     from "./components/Login";
 import ForgotPassword from "./pages/ForgotPassword";
 import Profile   from "./pages/Profile";
 import { NotificationProvider } from "./context/NotificationContext";
+import config from "./config";
 
 // User
 import TimeEntry         from "./pages/user/TimeEntry";
@@ -50,7 +51,7 @@ function App() {
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (token) {
-      fetch("http://127.0.0.1:8000/auth/me", {
+      fetch(`${config.API_URL}/auth/me`, {
         headers: { "Authorization": `Bearer ${token}` }
       })
       .then(res => {

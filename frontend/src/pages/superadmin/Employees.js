@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import "../../styles/theme.css";
+import config from "../../config";
 import { useNotifications } from "../../context/NotificationContext";
 import employeesApi from "../../api/employees";
 import subcatsApi from "../../api/subcategories";
@@ -95,14 +96,14 @@ export default function Employees({ superUser }) {
       setCategories(cats);
 
       // Fetch departments
-      const deptRes = await fetch("http://127.0.0.1:8000/departments", { headers });
+      const deptRes = await fetch(`${config.API_URL}/departments`, { headers });
       if (deptRes.ok) {
         const depts = await deptRes.json();
         setDeptsList(depts);
       }
 
       // Fetch password reset requests
-      const res = await fetch("http://127.0.0.1:8000/auth/reset-requests", { headers });
+      const res = await fetch(`${config.API_URL}/auth/reset-requests`, { headers });
       if (res.ok) {
         const data = await res.json();
         const mapped = data.map((r, idx) => {
@@ -233,7 +234,7 @@ export default function Employees({ superUser }) {
     (async () => {
       try {
         const token = localStorage.getItem("token");
-        const res = await fetch(`http://127.0.0.1:8000/auth/reset-requests/${req.empNo}/action`, {
+        const res = await fetch(`${config.API_URL}/auth/reset-requests/${req.empNo}/action`, {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
@@ -257,7 +258,7 @@ export default function Employees({ superUser }) {
     (async () => {
       try {
         const token = localStorage.getItem("token");
-        const res = await fetch(`http://127.0.0.1:8000/auth/reset-requests/${req.empNo}/action`, {
+        const res = await fetch(`${config.API_URL}/auth/reset-requests/${req.empNo}/action`, {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",

@@ -22,4 +22,5 @@ if ($LASTEXITCODE -ne 0) {
 
 # Run FastAPI Server
 Write-Host "🚀 Launching FastAPI backend server..." -ForegroundColor Green
-uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+# Deployment host and port (listen on all interfaces and use production port)
+uvicorn app.main:app --reload --host 0.0.0.0 --port 58010

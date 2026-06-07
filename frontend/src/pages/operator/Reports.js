@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import "../../styles/theme.css";
+import config from "../../config";
 
 const StatusBadge = ({ status }) => {
   const m = { P:{label:"Present",bg:"#16a34a"}, L:{label:"Leave",bg:"#dc2626"}, OD:{label:"On Duty",bg:"#d97706"}, HD:{label:"Half Day",bg:"#2563eb"} };
@@ -54,7 +55,7 @@ export default function Reports() {
       if (params.dateFrom) qs.set("date_from", params.dateFrom);
       if (params.dateTo)   qs.set("date_to",   params.dateTo);
       if (params.machine && params.machine !== "All") qs.set("machine", params.machine);
-      const url = `http://127.0.0.1:8000/time-entries${qs.toString() ? "?" + qs.toString() : ""}`;
+      const url = `${config.API_URL}/time-entries${qs.toString() ? "?" + qs.toString() : ""}`;
       const res = await fetch(url, { headers });
       if (res.ok) {
         const data = await res.json();

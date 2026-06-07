@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import "../styles/theme.css";
+import config from "../config";
 
 // Role display helper
 function roleLabel(role) {
@@ -53,7 +54,7 @@ export default function Profile({ user }) {
 
     (async () => {
       try {
-        const res = await fetch("http://127.0.0.1:8000/auth/change-password", {
+        const res = await fetch(`${config.API_URL}/auth/change-password`, {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",

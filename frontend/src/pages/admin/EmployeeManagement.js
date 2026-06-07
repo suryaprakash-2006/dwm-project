@@ -4,6 +4,7 @@ import { useNotifications } from "../../context/NotificationContext";
 import machinesApi from "../../api/machines";
 import subcatsApi from "../../api/subcategories";
 import employeesApi from "../../api/employees";
+import config from "../../config";
 
 const INITIAL_MACHINES = [];
 const INITIAL_REQUESTS = [];
@@ -53,7 +54,7 @@ export default function EmployeeManagement({ adminUser }) {
   const loadLateRequests = async () => {
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch("http://127.0.0.1:8000/time-entries?approvalStatus=Pending", {
+      const res = await fetch(`${config.API_URL}/time-entries?approvalStatus=Pending`, {
         headers: { "Authorization": `Bearer ${token}` }
       });
       if (res.ok) {
@@ -161,7 +162,7 @@ export default function EmployeeManagement({ adminUser }) {
     (async () => {
       try {
         const token = localStorage.getItem("token");
-        const res = await fetch(`http://127.0.0.1:8000/time-entries/${id}/approve`, {
+        const res = await fetch(`${config.API_URL}/time-entries/${id}/approve`, {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
@@ -199,7 +200,7 @@ export default function EmployeeManagement({ adminUser }) {
     (async () => {
       try {
         const token = localStorage.getItem("token");
-        const res = await fetch(`http://127.0.0.1:8000/time-entries/${id}/reject`, {
+        const res = await fetch(`${config.API_URL}/time-entries/${id}/reject`, {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",

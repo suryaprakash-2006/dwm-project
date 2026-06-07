@@ -113,11 +113,11 @@ python scripts/setup_db.py
 *Note: As per critical production requirements, the database starts completely clean and empty.*
 
 ### 4. Running the Backend Server
-Start the Uvicorn development server:
+Start the Uvicorn server for deployment (listen on all interfaces and use the production port):
 ```bash
-uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+uvicorn app.main:app --reload --host 0.0.0.0 --port 58010
 ```
-The interactive documentation (Swagger UI) is available locally at: `http://127.0.0.1:8000/docs`
+The interactive documentation (Swagger UI) is available at: `http://192.168.5.22:58010/docs`
 
 ---
 

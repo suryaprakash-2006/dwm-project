@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import "../../styles/theme.css";
+import config from "../../config";
 
 const CATEGORIES = [
   "Task against order","Improvements / Development","Complaints",
@@ -81,7 +82,7 @@ export default function OperatorTimeEntry({ user, onWorkLogged }) {
     if (!token) return;
     try {
       // Sub Categories
-      const scRes = await fetch("http://127.0.0.1:8000/sub-categories", {
+      const scRes = await fetch(`${config.API_URL}/sub-categories`, {
         headers: { "Authorization": `Bearer ${token}` }
       });
       if (scRes.ok) {
@@ -93,7 +94,7 @@ export default function OperatorTimeEntry({ user, onWorkLogged }) {
       }
 
       // Machines
-      const mRes = await fetch("http://127.0.0.1:8000/machines", {
+      const mRes = await fetch(`${config.API_URL}/machines`, {
         headers: { "Authorization": `Bearer ${token}` }
       });
       if (mRes.ok) {
@@ -105,7 +106,7 @@ export default function OperatorTimeEntry({ user, onWorkLogged }) {
       }
 
       // Pending entries
-      const teRes = await fetch("http://127.0.0.1:8000/time-entries?approvalStatus=Pending", {
+      const teRes = await fetch(`${config.API_URL}/time-entries?approvalStatus=Pending`, {
         headers: { "Authorization": `Bearer ${token}` }
       });
       if (teRes.ok) {
@@ -179,7 +180,7 @@ export default function OperatorTimeEntry({ user, onWorkLogged }) {
 
     (async () => {
       try {
-        const res = await fetch("http://127.0.0.1:8000/time-entries", {
+        const res = await fetch(`${config.API_URL}/time-entries`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

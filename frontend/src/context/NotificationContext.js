@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
+import config from "../config";
 
 const NotificationContext = createContext(null);
 
@@ -9,7 +10,7 @@ export function NotificationProvider({ children }) {
     const token = localStorage.getItem("token");
     if (!token) return;
     try {
-      const res = await fetch("http://127.0.0.1:8000/notifications", {
+      const res = await fetch(`${config.API_URL}/notifications`, {
         headers: { "Authorization": `Bearer ${token}` }
       });
       if (res.ok) {
@@ -31,7 +32,7 @@ export function NotificationProvider({ children }) {
     const token = localStorage.getItem("token");
     if (!token) return;
     try {
-      const res = await fetch("http://127.0.0.1:8000/notifications", {
+      const res = await fetch(`${config.API_URL}/notifications`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -52,7 +53,7 @@ export function NotificationProvider({ children }) {
     const token = localStorage.getItem("token");
     if (!token) return;
     try {
-      const res = await fetch(`http://127.0.0.1:8000/notifications/${id}/read`, {
+      const res = await fetch(`${config.API_URL}/notifications/${id}/read`, {
         method: "PUT",
         headers: { "Authorization": `Bearer ${token}` }
       });
@@ -68,7 +69,7 @@ export function NotificationProvider({ children }) {
     const token = localStorage.getItem("token");
     if (!token) return;
     try {
-      const res = await fetch(`http://127.0.0.1:8000/notifications/read-all`, {
+      const res = await fetch(`${config.API_URL}/notifications/read-all`, {
         method: "PUT",
         headers: { "Authorization": `Bearer ${token}` }
       });
@@ -84,7 +85,7 @@ export function NotificationProvider({ children }) {
     const token = localStorage.getItem("token");
     if (!token) return false;
     try {
-      const res = await fetch(`http://127.0.0.1:8000/notifications/${id}`, {
+      const res = await fetch(`${config.API_URL}/notifications/${id}`, {
         method: "DELETE",
         headers: { "Authorization": `Bearer ${token}` }
       });
@@ -116,7 +117,7 @@ export function NotificationProvider({ children }) {
     const token = localStorage.getItem("token");
     if (!token) return false;
     try {
-      const res = await fetch("http://127.0.0.1:8000/notifications", {
+      const res = await fetch(`${config.API_URL}/notifications`, {
         method: "DELETE",
         headers: { "Authorization": `Bearer ${token}` }
       });
@@ -150,7 +151,7 @@ export function NotificationProvider({ children }) {
 
   const addResetRequest = async (empNo) => {
     try {
-      const res = await fetch("http://127.0.0.1:8000/auth/reset-request", {
+      const res = await fetch(`${config.API_URL}/auth/reset-request`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ empNo })
@@ -168,7 +169,7 @@ export function NotificationProvider({ children }) {
 
   const getResetStatus = async (empNo) => {
     try {
-      const res = await fetch(`http://127.0.0.1:8000/auth/reset-status/${empNo}`);
+      const res = await fetch(`${config.API_URL}/auth/reset-status/${empNo}`);
       if (res.ok) {
         const data = await res.json();
         return data.status;
@@ -183,7 +184,7 @@ export function NotificationProvider({ children }) {
     const token = localStorage.getItem("token");
     if (!token) return;
     try {
-      const res = await fetch(`http://127.0.0.1:8000/auth/reset-requests/${empNo}/action`, {
+      const res = await fetch(`${config.API_URL}/auth/reset-requests/${empNo}/action`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

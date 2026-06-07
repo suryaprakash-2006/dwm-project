@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import "../../styles/theme.css";
+import config from "../../config";
 
 const today = new Date().toISOString().split("T")[0];
 
@@ -66,10 +67,10 @@ export default function Reports() {
         const token   = localStorage.getItem("token");
         const headers = { "Authorization": `Bearer ${token}` };
 
-        const deptRes = await fetch("http://127.0.0.1:8000/departments", { headers });
+        const deptRes = await fetch(`${config.API_URL}/departments`, { headers });
         if (deptRes.ok && mounted) setDepartments(await deptRes.json());
 
-        const empRes = await fetch("http://127.0.0.1:8000/employees", { headers });
+        const empRes = await fetch(`${config.API_URL}/employees`, { headers });
         if (empRes.ok && mounted) setEmployees(await empRes.json());
       } catch (err) {
         console.warn("Failed to load dropdown data", err);
@@ -89,7 +90,7 @@ export default function Reports() {
       if (empId && empId !== "all")           qs.set("emp_id", empId);
       if (df) qs.set("date_from", df);
       if (dt) qs.set("date_to",   dt);
-      const url = `http://127.0.0.1:8000/reports/work-summary${qs.toString() ? "?" + qs.toString() : ""}`;
+      const url = `${config.API_URL}/reports/work-summary${qs.toString() ? "?" + qs.toString() : ""}`;
       const res = await fetch(url, { headers: { "Authorization": `Bearer ${token}` } });
       if (res.ok) setWorkRows(await res.json());
     } catch (err) {

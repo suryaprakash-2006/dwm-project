@@ -3,6 +3,7 @@ import { Pie, Bar } from "react-chartjs-2";
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, ArcElement, Tooltip, Legend } from "chart.js";
 import ChartDataLabels from "chartjs-plugin-datalabels";
 import "../../styles/theme.css";
+import config from "../../config";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Tooltip, Legend, ChartDataLabels);
 
@@ -58,7 +59,7 @@ export default function WorkAnalytics({ user }) {
         const headers = { "Authorization": `Bearer ${token}` };
 
         // Fetch employees
-        const empRes = await fetch("http://127.0.0.1:8000/employees", { headers });
+        const empRes = await fetch(`${config.API_URL}/employees`, { headers });
         if (empRes.ok && mounted) {
           const emps = await empRes.json();
           // Filter to admin's department
@@ -66,7 +67,7 @@ export default function WorkAnalytics({ user }) {
         }
 
         // Fetch work summaries (automatically filtered by admin's department on backend)
-        const workRes = await fetch("http://127.0.0.1:8000/reports/work-summary", { headers });
+        const workRes = await fetch(`${config.API_URL}/reports/work-summary`, { headers });
         if (workRes.ok && mounted) {
           setWorkRows(await workRes.json());
         }

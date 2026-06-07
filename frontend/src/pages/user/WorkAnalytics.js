@@ -3,6 +3,7 @@ import { Pie, Bar } from "react-chartjs-2";
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, ArcElement, Tooltip, Legend } from "chart.js";
 import ChartDataLabels from "chartjs-plugin-datalabels";
 import "../../styles/theme.css";
+import config from "../../config";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Tooltip, Legend, ChartDataLabels);
 
@@ -66,7 +67,7 @@ export default function WorkAnalytics() {
       if (params.dateFrom) qs.set("date_from", params.dateFrom);
       if (params.dateTo)   qs.set("date_to",   params.dateTo);
       if (params.shift && params.shift !== "all") qs.set("shift", params.shift);
-      const url = `http://127.0.0.1:8000/time-entries${qs.toString() ? "?" + qs.toString() : ""}`;
+      const url = `${config.API_URL}/time-entries${qs.toString() ? "?" + qs.toString() : ""}`;
       const res = await fetch(url, { headers });
       if (res.ok) {
         const data = await res.json();

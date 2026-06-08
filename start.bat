@@ -46,8 +46,8 @@ timeout /t 2 >nul
 
 :: ── Start Backend ─────────────────────────────────────────────────
 
-echo [1/3] Starting Backend  (port 58010)...
-start "DWM Backend" cmd /k "cd /d "%BACKEND_DIR%" && call venv\Scripts\activate.bat && uvicorn app.main:app --host 0.0.0.0 --port 58010"
+echo [1/3] Starting Backend (port 58010)...
+cscript //nologo "%~dp0run_hidden.vbs" "\"%BACKEND_DIR%\\venv\\Scripts\\uvicorn.exe\"" app.main:app --host 0.0.0.0 --port 58010
 
 :: Wait for backend to initialize before starting frontend
 echo [2/3] Waiting 8 seconds for backend to initialize...

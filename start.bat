@@ -19,4 +19,4 @@ echo.
 echo Frontend : http://192.168.5.22:53005
 echo Backend  : http://192.168.5.22:58010
 echo.
-pause
+exit

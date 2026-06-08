@@ -61,9 +61,9 @@ echo [3/3] Starting Frontend (port 53005)...
 if not exist "%FRONTEND_DIR%\build\index.html" (
     echo       Build folder missing - running npm run build first...
     echo       This may take 3-5 minutes. Please wait.
-    start "DWM Frontend" cmd /k "cd /d "%FRONTEND_DIR%" && npm run build && npx serve -s build -l 53005 --no-clipboard"
+    start "DWM Frontend" cmd /k "cd /d "%FRONTEND_DIR%" && npm run build && npx -y serve -s build -l 53005 --no-clipboard"
 ) else (
-    start "DWM Frontend" cmd /k "cd /d "%FRONTEND_DIR%" && npx serve -s build -l 53005 --no-clipboard"
+    start "DWM Frontend" cmd /k "cd /d "%FRONTEND_DIR%" && npx -y serve -s build -l 53005 --no-clipboard"
 )
 
 :: ── Done ──────────────────────────────────────────────────────────

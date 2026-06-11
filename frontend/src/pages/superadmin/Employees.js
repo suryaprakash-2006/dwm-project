@@ -4,6 +4,7 @@ import config from "../../config";
 import { useNotifications } from "../../context/NotificationContext";
 import employeesApi from "../../api/employees";
 import subcatsApi from "../../api/subcategories";
+import workcatsApi from "../../api/workcategories";
 
 const SHIFTS = ["A", "B", "C"];
 
@@ -92,7 +93,7 @@ export default function Employees({ superUser }) {
 
       const emps = await employeesApi.list();
       setEmployees(emps);
-      const cats = await subcatsApi.list();
+      const cats = await workcatsApi.list();
       setCategories(cats);
 
       // Fetch departments
@@ -190,7 +191,7 @@ export default function Employees({ superUser }) {
     if(!newCat.name.trim()) return;
     (async () => {
       try {
-        const created = await subcatsApi.create(newCat);
+        const created = await workcatsApi.create(newCat);
         setCategories((p)=>[...p, created]);
         setNewCat({name:"",description:""}); 
         setShowAddCat(false); 
@@ -205,7 +206,7 @@ export default function Employees({ superUser }) {
     if(!editCat) return;
     (async () => {
       try {
-        const updated = await subcatsApi.update(editCat.id, editCat);
+        const updated = await workcatsApi.update(editCat.id, editCat);
         setCategories((p)=>p.map((c)=>c.id===updated.id?updated:c));
         setEditCat(null); 
         showMsg("success","Category updated.");
@@ -219,7 +220,7 @@ export default function Employees({ superUser }) {
     (async () => {
       try {
         const cat=categories.find((c)=>c.id===confirmDelCat);
-        await subcatsApi.remove(confirmDelCat);
+        await workcatsApi.remove(confirmDelCat);
         setCategories((p)=>p.filter((c)=>c.id!==confirmDelCat));
         setConfirmDelCat(null); 
         showMsg("warning",`"${cat.name}" deleted.`);

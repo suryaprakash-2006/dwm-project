@@ -87,7 +87,7 @@ The database index constraints are established in `scripts/setup_db.py` to asser
 
 ### 1. MongoDB Community Server Installation
 1. Install **MongoDB Community Server (v6.0+)** on your local database server.
-2. Ensure the service is running and binds to local addresses (e.g. `127.0.0.1:27017` or custom LAN address).
+2. Ensure the service is running and binds to local addresses (e.g. `192.168.5.22:27017` or custom LAN address).
 3. If running on a dedicated network machine, open port `27017` on the server firewall.
 
 ### 2. Backend Environment Setup

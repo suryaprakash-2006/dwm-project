@@ -47,7 +47,8 @@ export default function EmployeeManagement({ adminUser }) {
   const [showAddSC, setShowAddSC]         = useState(false);
   const [editSC, setEditSC]               = useState(null);
   const [confirmDelSC, setConfirmDelSC]   = useState(null);
-  const [newSC, setNewSC]                 = useState({name:"",description:""});
+  const [newSC, setNewSC]                 = useState({name:"",description:"",workCategoryId:""});
+  const [workCategories, setWorkCategories] = useState([]);
 
   const msg = (type, text) => { setAlert({type,text}); setTimeout(()=>setAlert(null),3500); };
 
@@ -115,19 +116,42 @@ export default function EmployeeManagement({ adminUser }) {
 
   // Sub Category CRUD
   const addSubCategory = () => {
-    if(!newSC.name.trim()) return;
+    if(!newSC.name.trim()) {
+      msg("warning", "Sub-category name is required.");
+      return;
+    }
+    if(!newSC.workCategoryId) {
+      msg("warning", "Parent Work Category is required.");
+      return;
+    }
     (async ()=>{
       try{
-        const created = await subcatsApi.create({ name:newSC.name, description:newSC.description });
+        const created = await subcatsApi.create({
+          name: newSC.name.trim(),
+          description: newSC.description.trim(),
+          workCategoryId: Number(newSC.workCategoryId)
+        });
         setSubCategories((p)=>[...p, created]);
-        setNewSC({name:"",description:""}); setShowAddSC(false); msg("success","Sub-category added.");
-      }catch(err){ msg("warning","Failed to add sub-category."); }
+        setNewSC({name:"",description:"",workCategoryId:""}); setShowAddSC(false); msg("success","Sub-category added.");
+      }catch(err){ msg("warning", err.message || "Failed to add sub-category."); }
     })();
   };
   const saveEditSC = () => {
+    if(!editSC.name.trim()) {
+      msg("warning", "Sub-category name is required.");
+      return;
+    }
+    if(!editSC.workCategoryId) {
+      msg("warning", "Parent Work Category is required.");
+      return;
+    }
     (async ()=>{
       try{
-        const updated = await subcatsApi.update(editSC.id, editSC);
+        const updated = await subcatsApi.update(editSC.id, {
+          name: editSC.name.trim(),
+          description: editSC.description.trim(),
+          workCategoryId: Number(editSC.workCategoryId)
+        });
         setSubCategories((p)=>p.map((s)=>s.id===updated.id?updated:s));
         setEditSC(null); msg("success","Sub-category updated.");
       }catch(err){ msg("warning","Failed to update sub-category."); }
@@ -152,6 +176,16 @@ export default function EmployeeManagement({ adminUser }) {
         const adminDept = adminUser?.department || adminUser?.dept || "";
         const ms = await machinesApi.listByDept(adminDept); if(mounted && Array.isArray(ms)) setMachines(ms);
         const scs = await subcatsApi.list(); if(mounted && Array.isArray(scs)) setSubCategories(scs);
+        
+        // Fetch active work categories
+        const token = localStorage.getItem("token");
+        const wcRes = await fetch(`${config.API_URL}/work-categories?active=true`, {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        if (wcRes.ok) {
+          const wcData = await wcRes.json();
+          if (mounted) setWorkCategories(wcData);
+        }
       }catch(err){ console.warn('Failed to load mocks',err); }
     })();
     return ()=> mounted=false;
@@ -405,19 +439,28 @@ export default function EmployeeManagement({ adminUser }) {
             {showAddSC&&(
               <div className="card p-3 mb-3">
                 <h6 style={{ fontWeight:700, marginBottom:14 }}>New Sub Category</h6>
-                <div className="row g-2">
-                  <div className="col-md-5">
-                    <label style={{ fontWeight:600, fontSize:13 }}>Name <span style={{ color:"#dc2626" }}>*</span></label>
+                <div className="row g-3">
+                  <div className="col-md-4">
+                    <label style={{ fontWeight:600, fontSize:13 }}>Work Category <span style={{ color:"#dc2626" }}>*</span></label>
+                    <select className="form-select" value={newSC.workCategoryId || ""} onChange={(e)=>setNewSC({...newSC,workCategoryId:e.target.value})}>
+                      <option value="">-- Select Work Category --</option>
+                      {workCategories.map((wc) => (
+                        <option key={wc.id} value={wc.id}>{wc.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="col-md-4">
+                    <label style={{ fontWeight:600, fontSize:13 }}>Sub Category Name <span style={{ color:"#dc2626" }}>*</span></label>
                     <input className="form-control" placeholder="Sub category name" value={newSC.name} onChange={(e)=>setNewSC({...newSC,name:e.target.value})} />
                   </div>
-                  <div className="col-md-7">
+                  <div className="col-md-4">
                     <label style={{ fontWeight:600, fontSize:13 }}>Description</label>
                     <input className="form-control" placeholder="Optional description" value={newSC.description} onChange={(e)=>setNewSC({...newSC,description:e.target.value})} />
                   </div>
                 </div>
                 <div className="d-flex gap-2 mt-3">
                   <button className="btn btn-success btn-sm" onClick={addSubCategory}>Save</button>
-                  <button className="btn btn-secondary btn-sm" onClick={()=>{ setShowAddSC(false); setNewSC({name:"",description:""}); }}>Cancel</button>
+                  <button className="btn btn-secondary btn-sm" onClick={()=>{ setShowAddSC(false); setNewSC({name:"",description:"",workCategoryId:""}); }}>Cancel</button>
                 </div>
               </div>
             )}
@@ -426,14 +469,17 @@ export default function EmployeeManagement({ adminUser }) {
               <div className="table-responsive">
                 <table className="table table-bordered align-middle mb-0">
                   <thead>
-                    <tr><th>#</th><th>NAME</th><th>DESCRIPTION</th><th style={{ minWidth:160 }}>ACTIONS</th></tr>
+                    <tr><th>#</th><th>WORK CATEGORY</th><th>SUB CATEGORY NAME</th><th>DESCRIPTION</th><th style={{ minWidth:160 }}>ACTIONS</th></tr>
                   </thead>
                   <tbody>
                     {subCategories.length===0?(
-                      <tr><td colSpan={4} style={{ textAlign:"center", color:"#94a3b8", padding:30 }}>No sub-categories yet.</td></tr>
+                      <tr><td colSpan={5} style={{ textAlign:"center", color:"#94a3b8", padding:30 }}>No sub-categories yet.</td></tr>
                     ):subCategories.map((sc,i)=>(
                       <tr key={sc.id}>
                         <td style={{ color:"#94a3b8", fontFamily:"monospace", fontSize:12 }}>{i+1}</td>
+                        <td style={{ fontWeight:600, color:"#475569" }}>
+                          {workCategories.find(w => w.id === sc.workCategoryId)?.name || <span style={{ color: "#dc2626" }}>Orphan (No Parent)</span>}
+                        </td>
                         <td style={{ fontWeight:700, color:"#0f172a" }}>{sc.name}</td>
                         <td style={{ fontSize:13, color:"#475569" }}>{sc.description || "—"}</td>
                         <td>
@@ -453,12 +499,21 @@ export default function EmployeeManagement({ adminUser }) {
             {editSC&&(<div className="confirm-overlay"><div className="confirm-box" style={{ maxWidth:400 }}>
               <h6 style={{ fontWeight:700, marginBottom:16 }}>Edit Sub Category</h6>
               <div className="mb-3">
+                <label style={{ fontWeight:600, fontSize:13 }}>Work Category <span style={{ color:"#dc2626" }}>*</span></label>
+                <select className="form-select" value={editSC.workCategoryId || ""} onChange={(e)=>setEditSC({...editSC,workCategoryId:Number(e.target.value)})}>
+                  <option value="">-- Select Work Category --</option>
+                  {workCategories.map((wc) => (
+                    <option key={wc.id} value={wc.id}>{wc.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="mb-3">
                 <label style={{ fontWeight:600, fontSize:13 }}>Name</label>
                 <input className="form-control" value={editSC.name} onChange={(e)=>setEditSC({...editSC,name:e.target.value})} />
               </div>
               <div className="mb-3">
                 <label style={{ fontWeight:600, fontSize:13 }}>Description</label>
-                <input className="form-control" value={editSC.description} onChange={(e)=>setEditSC({...editSC,description:e.target.value})} />
+                <input className="form-control" value={editSC.description || ""} onChange={(e)=>setEditSC({...editSC,description:e.target.value})} />
               </div>
               <div className="d-flex gap-2 justify-content-center">
                 <button className="btn btn-secondary btn-sm" onClick={()=>setEditSC(null)}>Cancel</button>

@@ -7,6 +7,7 @@ from app.models.database import (
     COL_EMPLOYEES,
     COL_DEPARTMENTS,
     COL_MACHINES,
+    COL_WORK_CATEGORIES,
     COL_SUB_CATEGORIES,
     COL_TIME_ENTRIES,
     COL_NOTIFICATIONS,
@@ -87,7 +88,10 @@ class EmployeesRepository(BaseRepository):
         if dept:
             query["dept"] = dept
         if active is not None:
-            query["active"] = active
+            if active:
+                query["$or"] = [{"active": True}, {"active": {"$exists": False}}]
+            else:
+                query["active"] = False
         docs = self.collection.find(query)
         return [self._clean(d) for d in docs]
 
@@ -200,7 +204,10 @@ class MachinesRepository(BaseRepository):
         if dept:
             query["dept"] = dept
         if active is not None:
-            query["active"] = active
+            if active:
+                query["$or"] = [{"active": True}, {"active": {"$exists": False}}]
+            else:
+                query["active"] = False
         docs = self.collection.find(query)
         return [self._clean(d) for d in docs]
 
@@ -237,29 +244,99 @@ class MachinesRepository(BaseRepository):
         return self.collection.delete_one({"id": machine_id}).deleted_count > 0
 
 
+class WorkCategoriesRepository(BaseRepository):
+    """Global work categories — managed by SUPER_ADMIN only."""
+
+    def __init__(self):
+        super().__init__(COL_WORK_CATEGORIES)
+
+    def get_all(self, active: Optional[bool] = None) -> List[dict]:
+        query: dict = {}
+        if active is not None:
+            if active:
+                query["$or"] = [{"active": True}, {"active": {"$exists": False}}]
+            else:
+                query["active"] = False
+        docs = self.collection.find(query).sort("id", ASCENDING)
+        return [self._clean(d) for d in docs]
+
+    def get_by_id(self, wc_id: int) -> Optional[dict]:
+        doc = self.collection.find_one({"id": wc_id})
+        return self._clean(doc)
+
+    def get_by_name(self, name: str) -> Optional[dict]:
+        doc = self.collection.find_one({"name": name})
+        return self._clean(doc)
+
+    def add(self, data: dict) -> dict:
+        wc = {
+            "id": self._next_id("work_category"),
+            "name": data["name"],
+            "description": data.get("description", ""),
+            "active": data.get("active", True)
+        }
+        self.collection.insert_one(wc)
+        return self._clean(wc)
+
+    def update(self, wc_id: int, data: dict) -> Optional[dict]:
+        updates = {k: data[k] for k in ["name", "description", "active"] if k in data}
+        result = self.collection.find_one_and_update(
+            {"id": wc_id},
+            {"$set": updates},
+            return_document=True
+        )
+        return self._clean(result)
+
+    def delete(self, wc_id: int) -> bool:
+        return self.collection.delete_one({"id": wc_id}).deleted_count > 0
+
+
 class SubCategoriesRepository(BaseRepository):
     def __init__(self):
         super().__init__(COL_SUB_CATEGORIES)
 
-    def get_all(self) -> List[dict]:
-        docs = self.collection.find({})
+    def get_all(
+        self,
+        work_category_id: Optional[int] = None,
+        department: Optional[str] = None,
+        active: Optional[bool] = None
+    ) -> List[dict]:
+        query: dict = {}
+        if work_category_id is not None:
+            query["workCategoryId"] = work_category_id
+        if department:
+            query["department"] = department
+        if active is not None:
+            if active:
+                query["$or"] = [{"active": True}, {"active": {"$exists": False}}]
+            else:
+                query["active"] = False
+        docs = self.collection.find(query).sort("name", ASCENDING)
         return [self._clean(d) for d in docs]
 
     def get_by_id(self, sc_id: int) -> Optional[dict]:
         doc = self.collection.find_one({"id": sc_id})
         return self._clean(doc)
 
+    def get_by_name(self, name: str) -> Optional[dict]:
+        doc = self.collection.find_one({"name": name})
+        return self._clean(doc)
+
     def add(self, data: dict) -> dict:
         sc = {
             "id": self._next_id("sub_category"),
             "name": data["name"],
-            "description": data.get("description", "")
+            "description": data.get("description", ""),
+            "workCategoryId": data.get("workCategoryId"),
+            "department": data.get("department"),
+            "active": data.get("active", True)
         }
         self.collection.insert_one(sc)
         return self._clean(sc)
 
     def update(self, sc_id: int, data: dict) -> Optional[dict]:
-        updates = {k: data[k] for k in ["name", "description"] if k in data}
+        allowed = ["name", "description", "workCategoryId", "department", "active"]
+        updates = {k: data[k] for k in allowed if k in data}
         result = self.collection.find_one_and_update(
             {"id": sc_id},
             {"$set": updates},
@@ -326,8 +403,12 @@ class TimeEntriesRepository(BaseRepository):
             "designation": data.get("designation", ""),
             "shift": data.get("shift", "A"),
             "date": data.get("date", ""),
+            # Backward-compatible string fields
             "category": data.get("category", "General"),
             "subCategory": data.get("subCategory", ""),
+            # New ID references for analytics and reporting
+            "workCategoryId": data.get("workCategoryId"),
+            "subCategoryId": data.get("subCategoryId"),
             "status": data.get("status", "P"),
             "regularMins": data.get("regularMins", 0),
             "overtimeMins": data.get("overtimeMins", 0),
@@ -340,8 +421,11 @@ class TimeEntriesRepository(BaseRepository):
         return self._clean(entry)
 
     def update(self, entry_id: int, data: dict) -> Optional[dict]:
-        allowed = ["shift", "status", "category", "subCategory", "regularMins",
-                   "overtimeMins", "remarks", "approvalStatus", "machineRows"]
+        allowed = [
+            "shift", "status", "category", "subCategory",
+            "workCategoryId", "subCategoryId",
+            "regularMins", "overtimeMins", "remarks", "approvalStatus", "machineRows"
+        ]
         updates = {k: data[k] for k in allowed if k in data}
         result = self.collection.find_one_and_update(
             {"id": entry_id},

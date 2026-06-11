@@ -39,7 +39,7 @@ def run_server(directory: Path, host: str, port: int):
 def main():
     parser = argparse.ArgumentParser(description="Serve a React SPA build directory with SPA fallback.")
     parser.add_argument("--directory", required=True, help="Path to the build directory to serve.")
-    parser.add_argument("--host", default="127.0.0.1", help="Host to bind to.")
+    parser.add_argument("--host", default="192.168.5.22", help="Host to bind to.")
     parser.add_argument("--port", type=int, default=3003, help="Port to serve on.")
     args = parser.parse_args()
 

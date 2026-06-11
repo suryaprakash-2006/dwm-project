@@ -6,11 +6,13 @@ from app.repositories.db_repository import (
     CredentialsRepository,
     DepartmentsRepository,
     MachinesRepository,
+    WorkCategoriesRepository,
     SubCategoriesRepository,
     TimeEntriesRepository,
     NotificationsRepository,
     ResetRequestsRepository
 )
+
 
 # ── Config-driven limits (never hardcode these values) ────────────────────────
 MAX_REGULAR_MINS = settings.MAX_REGULAR_HOURS_PER_DAY * 60   # 480 by default
@@ -24,10 +26,12 @@ class BusinessLogicService:
         self.cred_repo = CredentialsRepository()
         self.dept_repo = DepartmentsRepository()
         self.machine_repo = MachinesRepository()
+        self.wc_repo = WorkCategoriesRepository()
         self.sc_repo = SubCategoriesRepository()
         self.time_repo = TimeEntriesRepository()
         self.notif_repo = NotificationsRepository()
         self.reset_repo = ResetRequestsRepository()
+
 
     # ─── Employee & Credentials Coordination ──────────────────────────────────
 
@@ -210,6 +214,29 @@ class BusinessLogicService:
                     f"{settings.MAX_TOTAL_HOURS_PER_DAY} hours per day."
                 )
             )
+
+        # ── Resolve workCategoryId and subCategoryId if not provided ──────────
+        # This ensures backward compatibility: if frontend sends category/subCategory
+        # strings only (legacy), we attempt to look up the IDs from the collections.
+        # If IDs are already provided (new flow), they take precedence.
+        if not entry_data.get("workCategoryId"):
+            category_name = entry_data.get("category", "")
+            if category_name:
+                wc = self.wc_repo.get_by_name(category_name)
+                if wc:
+                    entry_data["workCategoryId"] = wc["id"]
+                else:
+                    # Map to Unassigned if not found
+                    unassigned = self.wc_repo.get_by_name("Unassigned")
+                    if unassigned:
+                        entry_data["workCategoryId"] = unassigned["id"]
+
+        if not entry_data.get("subCategoryId"):
+            sub_category_name = entry_data.get("subCategory", "")
+            if sub_category_name:
+                sc = self.sc_repo.get_by_name(sub_category_name)
+                if sc:
+                    entry_data["subCategoryId"] = sc["id"]
 
         # Values are validated — save as-is (no silent manipulation)
         entry = self.time_repo.add(entry_data)
@@ -426,6 +453,12 @@ class BusinessLogicService:
         for entry in entries:
             reg_hrs = round(entry["regularMins"] / 60.0, 2)
             ot_hrs = round(entry["overtimeMins"] / 60.0, 2)
+            # Resolve workCategory name from workCategoryId if present, else use category string
+            work_category_name = entry.get("category", "")
+            if entry.get("workCategoryId"):
+                wc = self.wc_repo.get_by_id(entry["workCategoryId"])
+                if wc:
+                    work_category_name = wc["name"]
             summary.append({
                 "date": entry["date"],
                 "empId": entry["empId"],
@@ -434,8 +467,10 @@ class BusinessLogicService:
                 "dept": entry["dept"],
                 "designation": entry["designation"],
                 "shift": entry.get("shift", ""),
-                "category": entry["category"],
+                "category": work_category_name,
                 "subCategory": entry["subCategory"],
+                "workCategoryId": entry.get("workCategoryId"),
+                "subCategoryId": entry.get("subCategoryId"),
                 "regularHours": reg_hrs,
                 "overtimeHours": ot_hrs,
                 "totalHours": round(reg_hrs + ot_hrs, 2),

@@ -2,10 +2,6 @@ import React, { useState, useEffect } from "react";
 import "../../styles/theme.css";
 import config from "../../config";
 
-const CATEGORIES = [
-  "Task against order","Improvements / Development","Complaints",
-  "New enquiry / RFQ","LBE","Supporting Activities","General","Travel / OD",
-];
 const STATUS_OPTIONS = [
   { value:"P",  label:"Present"  },
   { value:"HD", label:"Half Day" },
@@ -57,47 +53,85 @@ function HrMinInput({ label, hours, minutes, onHoursChange, onMinutesChange, max
 
 export default function TimeEntry({ user, onWorkLogged }) {
   const [selectedDate, setSelectedDate] = useState(formatDate(TODAY));
-  const [subCategories, setSubCategories] = useState([]);
+
+  const [workCategories, setWorkCategories]   = useState([]);
+  const [subCategories, setSubCategories]     = useState([]);
+
   const [form, setForm] = useState({
-    shift:"A", status:"P", category:CATEGORIES[0], subCategory:"",
+    shift:"A", status:"P",
+    workCategoryId: null, category:"",
+    subCategoryId: null, subCategory:"",
     regularHrs:"", regularMins:"",
     overtimeHrs:"", overtimeMins:"",
     remarks:"",
   });
-  const [submitted, setSubmitted] = useState(null);
+  const [submitted, setSubmitted]         = useState(null);
   const [pendingRequests, setPendingRequests] = useState([]);
-  const [errors, setErrors] = useState({});
+  const [errors, setErrors]               = useState({});
 
   const loadData = async () => {
     const token = localStorage.getItem("token");
     if (!token) return;
     try {
-      const scRes = await fetch(`${config.API_URL}/sub-categories`, {
+      // Load work categories from API (global)
+      const wcRes = await fetch(`${config.API_URL}/work-categories?active=true`, {
         headers: { "Authorization": `Bearer ${token}` }
       });
-      if (scRes.ok) {
-        const scData = await scRes.json();
-        setSubCategories(scData);
-        if (scData.length > 0) {
-          setForm(f => ({ ...f, subCategory: scData[0].name }));
-        }
+      let wcData = [];
+      if (wcRes.ok) {
+        wcData = await wcRes.json();
+        setWorkCategories(wcData);
       }
 
+      // Load pending requests
       const teRes = await fetch(`${config.API_URL}/time-entries?approvalStatus=Pending`, {
         headers: { "Authorization": `Bearer ${token}` }
       });
       if (teRes.ok) {
-        const teData = await teRes.json();
-        setPendingRequests(teData);
+        setPendingRequests(await teRes.json());
       }
     } catch (err) {
-      console.warn("Failed to load subcategories or time entries", err);
+      console.warn("Failed to load time entry form data", err);
     }
   };
 
   useEffect(() => {
     loadData();
   }, []);
+
+  // Load sub-categories when workCategoryId changes (Cascading Dropdown)
+  useEffect(() => {
+    const wcId = form.workCategoryId;
+    if (!wcId) {
+      setSubCategories([]);
+      setForm(f => ({ ...f, subCategoryId: null, subCategory: "" }));
+      return;
+    }
+
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    (async () => {
+      try {
+        const res = await fetch(`${config.API_URL}/sub-categories?workCategoryId=${wcId}&active=true`, {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setSubCategories(data);
+        } else {
+          setSubCategories([]);
+        }
+      } catch (err) {
+        console.warn("Failed to load subcategories for category", wcId, err);
+        setSubCategories([]);
+      }
+      // NO AUTO-SELECT: Reset subcategory selection and require user to choose manually
+      setForm(f => ({ ...f, subCategoryId: null, subCategory: "" }));
+    })();
+  }, [form.workCategoryId]);
+
+
 
   const set = (k,v) => setForm((f)=>({...f,[k]:v}));
 
@@ -116,6 +150,8 @@ export default function TimeEntry({ user, onWorkLogged }) {
 
   const validate = () => {
     const e = {};
+    if (!form.workCategoryId) e.workCategory = "Work Category is required.";
+    if (!form.subCategoryId || !form.subCategory) e.subCategory = "Sub Category is required.";
     if (!form.remarks.trim()) e.remarks = "Comments are mandatory.";
     if (regularTotalMins===0 && overtimeTotalMins===0) e.hours = "Please enter at least some hours worked.";
     setErrors(e);
@@ -133,8 +169,12 @@ export default function TimeEntry({ user, onWorkLogged }) {
     const payload = {
       shift: form.shift,
       date: selectedDate,
+      // Backward-compatible string fields
       category: form.category,
       subCategory: form.subCategory,
+      // New ID fields for analytics and reporting
+      workCategoryId: form.workCategoryId || undefined,
+      subCategoryId: form.subCategoryId || undefined,
       status: form.status,
       regularMins: regularTotalMins,
       overtimeMins: overtimeTotalMins,
@@ -162,9 +202,13 @@ export default function TimeEntry({ user, onWorkLogged }) {
             if (onWorkLogged) onWorkLogged(selectedDate, effectiveRegularMins, autoOvertimeMins);
           }
           setTimeout(()=>setSubmitted(null), 4000);
-          setForm({ 
-            shift: "A", status: "P", category: CATEGORIES[0], subCategory: subCategories[0]?.name || "",
-            regularHrs: "", regularMins: "", overtimeHrs: "", overtimeMins: "", remarks: "" 
+          // Reset form
+          setForm({
+            shift: "A", status: "P",
+            workCategoryId: null,
+            category: "",
+            subCategoryId: null, subCategory: "",
+            regularHrs: "", regularMins: "", overtimeHrs: "", overtimeMins: "", remarks: ""
           });
           setErrors({});
         } else {
@@ -254,20 +298,58 @@ export default function TimeEntry({ user, onWorkLogged }) {
                       </div>
                     </div>
 
-                    {/* Category */}
+                    {/* Work Category */}
                     <div style={{ marginBottom:18 }}>
                       <label style={{ display:"block", fontWeight:600, fontSize:13, color:"#475569", marginBottom:6 }}>Work Category</label>
-                      <select className="form-select" value={form.category} onChange={(e)=>set("category",e.target.value)}>
-                        {CATEGORIES.map((c)=><option key={c}>{c}</option>)}
+                      <select
+                        className="form-select"
+                        value={form.workCategoryId || ""}
+                        onChange={(e) => {
+                          const wc = workCategories.find(w => w.id === Number(e.target.value));
+                          setForm(f => ({
+                            ...f,
+                            workCategoryId: wc ? wc.id : null,
+                            category: wc ? wc.name : "",
+                            subCategoryId: null,
+                            subCategory: ""
+                          }));
+                          if (e.target.value) setErrors((er)=>({...er,workCategory:undefined}));
+                        }}
+                        style={{ borderColor: errors.workCategory ? "#dc2626" : undefined }}
+                      >
+                        <option value="">-- Select Work Category --</option>
+                        {workCategories.map((wc) => (
+                          <option key={wc.id} value={wc.id}>{wc.name}</option>
+                        ))}
                       </select>
+                      {errors.workCategory && <p style={{ fontSize:12, color:"#dc2626", margin:"4px 0 0", fontWeight:600 }}>⚠️ {errors.workCategory}</p>}
+                      {workCategories.length === 0 && (
+                        <p style={{ fontSize:12, color:"#94a3b8", marginTop:4 }}>No work categories configured. Contact Super Admin.</p>
+                      )}
                     </div>
 
-                    {/* Sub Category */}
+                    {/* Sub Category — resets when Work Category changes */}
                     <div style={{ marginBottom:18 }}>
                       <label style={{ display:"block", fontWeight:600, fontSize:13, color:"#475569", marginBottom:6 }}>Sub-Category</label>
-                      <select className="form-select" value={form.subCategory} onChange={(e)=>set("subCategory",e.target.value)}>
-                        {subCategories.map((c)=><option key={c.id || c.name} value={c.name}>{c.name}</option>)}
+                      <select
+                        className="form-select"
+                        value={form.subCategory}
+                        onChange={(e) => {
+                          const sc = subCategories.find(s => s.name === e.target.value);
+                          setForm(f => ({ ...f, subCategory: e.target.value, subCategoryId: sc ? sc.id : null }));
+                          if (e.target.value) setErrors((er)=>({...er,subCategory:undefined}));
+                        }}
+                        style={{ borderColor: errors.subCategory ? "#dc2626" : undefined }}
+                      >
+                        <option value="">-- Select Sub Category --</option>
+                        {subCategories.map((sc) => (
+                          <option key={sc.id || sc.name} value={sc.name}>{sc.name}</option>
+                        ))}
                       </select>
+                      {errors.subCategory && <p style={{ fontSize:12, color:"#dc2626", margin:"4px 0 0", fontWeight:600 }}>⚠️ {errors.subCategory}</p>}
+                      {subCategories.length === 0 && form.workCategoryId && (
+                        <p style={{ fontSize:12, color:"#94a3b8", marginTop:4 }}>No sub-categories assigned to this work category yet. Contact your Admin.</p>
+                      )}
                     </div>
 
                     {/* Hours - Regular + Overtime with hrs & mins */}

@@ -178,7 +178,7 @@ export default function Reports() {
 
     autoTable(doc, {
       startY: 130,
-      head: [["DATE", "EMP NO", "EMPLOYEE", "DEPARTMENT", "DESIGNATION", "CATEGORY", "REG HRS", "OT HRS", "TOTAL HRS", "APPROVAL STATUS"]],
+      head: [["DATE", "EMP NO", "EMPLOYEE", "DEPARTMENT", "DESIGNATION", "WORK CATEGORY", "SUB CATEGORY", "REG HRS", "OT HRS", "TOTAL HRS", "APPROVAL"]],
       body: filtered.map((row) => [
         row.date,
         row.empNo || row.empId,
@@ -186,13 +186,14 @@ export default function Reports() {
         row.dept,
         row.designation || "—",
         row.category,
+        row.subCategory || "—",
         formatHours(row.regularHours),
         formatHours(row.overtimeHours),
         formatHours(row.totalHours),
         row.approvalStatus,
       ]),
       margin: { left: 40, right: 40 },
-      styles: { fontSize: 7.5, cellPadding: 4, overflow: "linebreak", valign: "middle" },
+      styles: { fontSize: 7, cellPadding: 3, overflow: "linebreak", valign: "middle" },
       headStyles: { fillColor: [29, 78, 216], textColor: 255 },
     });
 
@@ -215,10 +216,10 @@ export default function Reports() {
   };
 
   const exportExcel = () => {
-    const headers = ["DATE", "EMP ID", "EMPLOYEE", "DEPARTMENT", "DESIGNATION", "CATEGORY", "REG HOURS", "OT HOURS", "TOTAL HOURS", "APPROVAL STATUS"];
+    const headers = ["DATE", "EMP ID", "EMPLOYEE", "DEPARTMENT", "DESIGNATION", "WORK CATEGORY", "SUB CATEGORY", "REG HOURS", "OT HOURS", "TOTAL HOURS", "APPROVAL STATUS"];
     const rows = filtered.map(r => [
       r.date ? `="${r.date}"` : "", r.empNo || r.empId, r.employee, r.dept, r.designation || "—",
-      r.category, r.regularHours, r.overtimeHours, r.totalHours, r.approvalStatus
+      r.category, r.subCategory || "—", r.regularHours, r.overtimeHours, r.totalHours, r.approvalStatus
     ]);
     const csv = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
     const a = document.createElement("a");
@@ -309,16 +310,17 @@ export default function Reports() {
               <tr>
                 <th>DATE</th><th>EMP NO</th><th>EMPLOYEE</th>
                 <th>DEPARTMENT</th><th>DESIGNATION</th>
-                <th>CATEGORY</th>
+                <th>WORK CATEGORY</th>
+                <th>SUB CATEGORY</th>
                 <th>REG HRS</th><th>OT HRS</th><th>TOTAL HRS</th>
                 <th>ATTENDANCE</th><th>APPROVAL</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={11} style={{ textAlign: "center", padding: 30, color: "#94a3b8" }}>Loading…</td></tr>
+                <tr><td colSpan={12} style={{ textAlign: "center", padding: 30, color: "#94a3b8" }}>Loading…</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={11} style={{ textAlign: "center", color: "#94a3b8", padding: "30px", fontSize: 14 }}>No records found for selected filters.</td></tr>
+                <tr><td colSpan={12} style={{ textAlign: "center", color: "#94a3b8", padding: "30px", fontSize: 14 }}>No records found for selected filters.</td></tr>
               ) : filtered.map((r, i) => (
                 <tr key={i}>
                   <td style={{ fontWeight: 600, color: "#334155" }}>{r.date}</td>
@@ -326,7 +328,8 @@ export default function Reports() {
                   <td style={{ fontWeight: 600, color: "#0f172a" }}>{r.employee}</td>
                   <td style={{ color: "#475569", fontSize: 13 }}>{r.dept}</td>
                   <td style={{ fontSize: 12, color: "#475569" }}>{r.designation || "—"}</td>
-                  <td style={{ fontSize: 12, color: "#475569" }}>{r.category}</td>
+                  <td style={{ fontSize: 12, color: "#1d4ed8", fontWeight: 600 }}>{r.category}</td>
+                  <td style={{ fontSize: 12, color: "#475569" }}>{r.subCategory || "—"}</td>
                   <td style={{ fontWeight: 600, fontFamily: "monospace" }}>{r.regularHours}</td>
                   <td style={{ fontWeight: 600, fontFamily: "monospace", color: r.overtimeHours > 0 ? "#d97706" : "#94a3b8" }}>{r.overtimeHours}</td>
                   <td style={{ fontWeight: 700, fontFamily: "monospace", color: "#0f172a" }}>{r.totalHours}</td>
@@ -346,4 +349,5 @@ export default function Reports() {
       </div>
     </div>
   );
+
 }

@@ -2,11 +2,14 @@ from pydantic import BaseModel, Field, validator
 from typing import Optional, List
 from datetime import datetime
 
+
 class TimeEntryBase(BaseModel):
     shift: str = Field("A", description="A, B, or C")
     date: str = Field(..., description="YYYY-MM-DD format")
-    category: str = Field("General", description="Work category, e.g. Task against order")
-    subCategory: str = Field(..., description="Subtask category")
+    category: str = Field("General", description="Work category name — kept for backward compatibility")
+    subCategory: str = Field(..., description="Sub-task category name — kept for backward compatibility")
+    workCategoryId: Optional[int] = Field(None, description="FK to work_categories.id — for analytics and reporting")
+    subCategoryId: Optional[int] = Field(None, description="FK to sub_categories.id — for analytics and reporting")
     status: str = Field("P", description="P (Present), HD (Half Day), L (Leave), OD (On Duty)")
     regularMins: int = Field(0, ge=0)
     overtimeMins: int = Field(0, ge=0)
@@ -24,21 +27,27 @@ class TimeEntryBase(BaseModel):
             raise ValueError('Date cannot be in the future')
         return v
 
+
 class TimeEntryCreate(TimeEntryBase):
     pass
+
 
 class TimeEntryUpdate(BaseModel):
     shift: Optional[str] = None
     status: Optional[str] = None
     category: Optional[str] = None
     subCategory: Optional[str] = None
+    workCategoryId: Optional[int] = None
+    subCategoryId: Optional[int] = None
     regularMins: Optional[int] = None
     overtimeMins: Optional[int] = None
     remarks: Optional[str] = None
     approvalStatus: Optional[str] = None
 
+
 class TimeEntryApprovalPayload(BaseModel):
     comment: Optional[str] = ""
+
 
 class TimeEntryOut(TimeEntryBase):
     id: int
@@ -48,9 +57,10 @@ class TimeEntryOut(TimeEntryBase):
     dept: str
     designation: str
     submittedAt: str
-    approvalStatus: str # "Pending", "Approved", "Rejected"
+    approvalStatus: str  # "Pending", "Approved", "Rejected"
     approvalComment: Optional[str] = ""
     approvedAt: Optional[str] = None
 
     class Config:
         from_attributes = True
+

@@ -13,8 +13,8 @@ class DatabaseConnection:
         try:
             self._client = MongoClient(
                 settings.MONGODB_URI,
-                serverSelectionTimeoutMS=8000,
-                connectTimeoutMS=8000,
+                serverSelectionTimeoutMS=53005,
+                connectTimeoutMS=53005,
                 socketTimeoutMS=30000,
                 maxPoolSize=50,
                 retryWrites=True

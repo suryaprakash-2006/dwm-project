@@ -18,3 +18,8 @@ build/
 .DS_Store
 Thumbs.db"frontend.zip" 
 "backend.zip" 
+
+venv/
+.venv/
+dwmvenv/
+backend/dwmvenv/

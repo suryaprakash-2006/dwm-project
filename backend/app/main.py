@@ -24,9 +24,9 @@ def startup_event():
     print("🚀 Starting DWM Portal API...")
     try:
         db_connection.connect()
-        print("✅ MongoDB connection pool initialized.")
+        print(" MongoDB connection pool initialized.")
     except Exception as e:
-        print(f"❌ Failed to initialize MongoDB connection pool: {e}")
+        print(f" Failed to initialize MongoDB connection pool: {e}")
 
 @app.get("/")
 def read_root():

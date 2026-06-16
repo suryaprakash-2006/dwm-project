@@ -47,7 +47,7 @@ _DB_NAME   = os.getenv("MONGODB_DB_NAME", "dwm_portal")
 
 if not _MONGO_URI:
     raise RuntimeError(
-        "\n\n  ❌  MONGODB_URI is not set in your .env file.\n"
+        "\n\n    MONGODB_URI is not set in your .env file.\n"
         "      Example for local server:\n"
         "      MONGODB_URI=mongodb://dwm_user:yourpassword@192.168.5.22:27017/dwm_portal?authSource=dwm_portal\n"
     )

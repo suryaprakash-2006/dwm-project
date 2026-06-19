@@ -23,9 +23,9 @@ if not exist "%BACKEND_DIR%\.env" (
 )
 
 :: Check venv
-if not exist "%BACKEND_DIR%\venv\Scripts\uvicorn.exe" (
+if not exist "%BACKEND_DIR%\dwmvenv\Scripts\uvicorn.exe" (
     echo [ERROR] Python virtual environment not found or incomplete.
-    echo         Please run: cd backend ^&^& python -m venv venv ^&^& venv\Scripts\pip install -r requirements.txt
+    echo         Please run: cd backend ^&^& python -m venv dwmvenv ^&^& dwmvenv\Scripts\pip install -r requirements.txt
     pause
     exit /b 1
 )
@@ -47,7 +47,7 @@ timeout /t 2 >nul
 :: ── Start Backend ─────────────────────────────────────────────────
 
 echo [1/3] Starting Backend (port 58010)...
-cscript //nologo "%~dp0run_hidden.vbs" cmd.exe /c cd /d "%BACKEND_DIR%" ^&^& "%BACKEND_DIR%\venv\Scripts\uvicorn.exe" app.main:app --host 0.0.0.0 --port 58010
+cscript //nologo "%~dp0run_hidden.vbs" cmd.exe /c cd /d "%BACKEND_DIR%" ^&^& "%BACKEND_DIR%\dwmvenv\Scripts\uvicorn.exe" app.main:app --host 0.0.0.0 --port 58010
 
 :: Wait for backend to initialize before starting frontend
 echo [2/3] Waiting 8 seconds for backend to initialize...

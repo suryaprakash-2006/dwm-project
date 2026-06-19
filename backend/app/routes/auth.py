@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timedelta
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Body
@@ -16,6 +17,7 @@ from app.middleware.rbac import get_current_user, RoleChecker
 from app.core.config import settings
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
+logger = logging.getLogger(__name__)
 cred_repo = CredentialsRepository()
 emp_repo = EmployeesRepository()
 reset_repo = ResetRequestsRepository()
@@ -30,6 +32,8 @@ def login(payload: dict = Body(..., description="Accepts standard LoginRequest o
     emp_no = payload.get("empNo") or payload.get("number")
     password = payload.get("password")
 
+    logger.info("Login request received for employee: %s", emp_no)
+
     if not emp_no:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -40,6 +44,7 @@ def login(payload: dict = Body(..., description="Accepts standard LoginRequest o
     if not emp:
         # Bootstrap SUPER_ADMIN if DB is completely empty
         if emp_no == "9001" and (password == "super123" or not password):
+            logger.info("Bootstrap event: Creating initial SUPER_ADMIN account")
             emp_data = {
                 "id": "SA-01",
                 "name": "Super Admin",
@@ -51,6 +56,8 @@ def login(payload: dict = Body(..., description="Accepts standard LoginRequest o
                 "empNo": "9001"
             }
             emp = service.register_employee(emp_data, get_password_hash("super123"))
+            # Force password to super123 to pass the standard verification below
+            password = "super123"
         else:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -59,12 +66,21 @@ def login(payload: dict = Body(..., description="Accepts standard LoginRequest o
 
     cred = cred_repo.find_by_emp_no(emp_no)
     if not cred:
+        logger.warning("Credential lookup failed for employee: %s", emp_no)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication credentials not found"
         )
 
-    if password and not verify_password(password, cred["password"]):
+    if not password:
+        logger.warning("Login rejected: Missing password for employee: %s", emp_no)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password is required"
+        )
+
+    if not verify_password(password, cred["password"]):
+        logger.warning("Password verification failed for employee: %s", emp_no)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials password"

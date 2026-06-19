@@ -74,12 +74,12 @@ function Login({ setUser }) {
             const status = statusData.status;
             if (status === "pending") {
               setErrorType("warning");
-              setError("⏳ Waiting for admin approval. Please try again after your admin approves your password reset request.");
+              setError(" Waiting for admin approval. Please try again after your admin approves your password reset request.");
               return;
             }
             if (status === "expired") {
               setErrorType("info");
-              setError("⚠️ Approval time exceeded (3 days). Please submit a new password reset request or contact your admin directly.");
+              setError(" Approval time exceeded (3 days). Please submit a new password reset request or contact your admin directly.");
               return;
             }
           }

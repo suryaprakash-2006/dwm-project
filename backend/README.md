@@ -98,7 +98,7 @@ The database index constraints are established in `scripts/setup_db.py` to asser
    ```
 3. Install required libraries:
    ```bash
-   pip install -r requirements.txt
+   dwmvenv\Scripts\pip install -r requirements.txt
    ```
 4. Create your `.env` configuration file:
    ```bash
@@ -115,9 +115,9 @@ python scripts/setup_db.py
 ### 4. Running the Backend Server
 Start the Uvicorn server for deployment (listen on all interfaces and use the production port):
 ```bash
-uvicorn app.main:app --reload --host 0.0.0.0 --port 58010
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
-The interactive documentation (Swagger UI) is available at: `http://192.168.5.22:58010/docs`
+The interactive documentation (Swagger UI) is available at: `http://192.168.5.22:8000/docs`
 
 ---
 

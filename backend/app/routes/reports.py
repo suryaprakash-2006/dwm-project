@@ -9,7 +9,7 @@ service = BusinessLogicService()
 
 
 def _today_str() -> str:
-    return _dt.utcnow().strftime("%Y-%m-%d")
+    return _dt.now().strftime("%Y-%m-%d")
 
 
 def _validate_no_future_date(date_str: Optional[str], field_name: str) -> None:

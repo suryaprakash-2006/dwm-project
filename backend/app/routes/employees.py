@@ -67,11 +67,6 @@ def create_employee(
     SUPER_ADMIN only — ADMIN cannot create employees.
     Shift is NOT part of employee master data and is excluded.
     """
-    if emp_repo.get_by_email(payload.email):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Employee with this email already exists"
-        )
     if emp_repo.get_by_emp_no(payload.empNo):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -121,7 +116,18 @@ def update_employee(
     if new_role and new_role != "SUPER_ADMIN" and emp.get("role") == "SUPER_ADMIN":
         guard_last_super_admin(id, action="demote")
 
+    # Synchronize credentials if email or empNo changed
+    old_emp_no = emp.get("empNo")
+    new_email = update_data.get("email", emp.get("email"))
+    new_emp_no = update_data.get("empNo", emp.get("empNo"))
+    
     updated = emp_repo.update(id, update_data)
+    
+    if updated and (new_email != emp.get("email") or new_emp_no != emp.get("empNo")):
+        from app.repositories.db_repository import CredentialsRepository
+        cred_repo = CredentialsRepository()
+        cred_repo.update_credentials_fields(old_emp_no, new_email, new_emp_no)
+        
     return updated
 
 

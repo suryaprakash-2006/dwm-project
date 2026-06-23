@@ -148,7 +148,7 @@ class BusinessLogicService:
         from datetime import datetime as _dt
         from fastapi import HTTPException, status as http_status
 
-        today = _dt.utcnow()
+        today = _dt.now()
         today_str = today.strftime("%Y-%m-%d")
         target_date_str = entry_data["date"]
 

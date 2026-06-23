@@ -23,7 +23,7 @@ DAILY_OT_LIMIT_MINS = settings.MAX_OVERTIME_HOURS_PER_DAY * 60
 
 
 def _today_str() -> str:
-    return _dt.utcnow().strftime("%Y-%m-%d")
+    return _dt.now().strftime("%Y-%m-%d")
 
 
 def _validate_no_future_date(date_str: str, field_name: str = "date") -> None:

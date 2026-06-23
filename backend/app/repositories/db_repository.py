@@ -66,6 +66,13 @@ class CredentialsRepository(BaseRepository):
         )
         return r.modified_count > 0
 
+    def update_credentials_fields(self, old_emp_no: str, new_email: str, new_emp_no: str) -> bool:
+        r = self.collection.update_one(
+            {"empNo": old_emp_no},
+            {"$set": {"email": new_email, "empNo": new_emp_no}}
+        )
+        return r.modified_count > 0
+
     def reset_password_to_default(self, emp_no: str, hashed_default: str) -> bool:
         r = self.collection.update_one(
             {"empNo": emp_no},

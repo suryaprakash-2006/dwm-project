@@ -23,7 +23,7 @@ class TimeEntryBase(BaseModel):
             entry_date = datetime.strptime(v, "%Y-%m-%d").date()
         except ValueError:
             raise ValueError('Date must be in YYYY-MM-DD format')
-        if entry_date > datetime.utcnow().date():
+        if entry_date > datetime.now().date():
             raise ValueError('Date cannot be in the future')
         return v
 

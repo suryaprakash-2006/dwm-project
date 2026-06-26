@@ -8,13 +8,19 @@ const STATUS_OPTIONS = [
   { value:"HD", label:"Half Day" },
   { value:"L",  label:"Leave"    },
   { value:"OD", label:"On Duty"  },
+  { value:"AB", label:"Absent"   },
 ];
 const SHIFT_OPTIONS = ["A","B","C"];
 const DAILY_STD_MINS = 8 * 60;
 
 const TODAY = new Date(); TODAY.setHours(0,0,0,0);
 function daysDiff(dateStr) { const d=new Date(dateStr); d.setHours(0,0,0,0); return Math.floor((TODAY-d)/(1000*60*60*24)); }
-function formatDate(d) { return d.toISOString().split("T")[0]; }
+function formatDate(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
 function getLast14Days() {
   const days=[];
   for(let i=0;i<14;i++) { const d=new Date(TODAY); d.setDate(TODAY.getDate()-i); days.push(formatDate(d)); }
@@ -49,6 +55,75 @@ function HrMinInput({ label, hours, minutes, onHoursChange, onMinutesChange, max
   );
 }
 
+// ── Searchable Sub-Category Combobox ─────────────────────────────────────────
+function SearchableSelect({ options, value, onChange, disabled, error, placeholder }) {
+  const [search, setSearch] = useState("");
+  const [open, setOpen]     = useState(false);
+  const ref = React.useRef(null);
+
+  const selectedLabel = options.find(o => o.name === value)?.name || "";
+  const filtered = options.filter(o =>
+    o.name.toLowerCase().includes(search.toLowerCase())
+  );
+
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const handleInputFocus = () => { setOpen(true); setSearch(""); };
+  const handleInputChange = (e) => { setSearch(e.target.value); setOpen(true); };
+  const handleSelect = (sc) => {
+    onChange(sc);
+    setOpen(false);
+    setSearch("");
+  };
+
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <input
+        className="form-control"
+        readOnly={!open}
+        value={open ? search : selectedLabel}
+        placeholder={placeholder || "-- Search Sub Category --"}
+        disabled={disabled}
+        onFocus={handleInputFocus}
+        onChange={handleInputChange}
+        style={{ borderColor: error ? "#dc2626" : undefined, cursor: disabled ? "not-allowed" : "text" }}
+      />
+      {!disabled && value && !open && (
+        <span style={{ position:"absolute", right:32, top:"50%", transform:"translateY(-50%)", fontSize:10, color:"#64748b" }}>▼</span>
+      )}
+      {open && (
+        <div style={{
+          position:"absolute", zIndex:999, width:"100%", maxHeight:200, overflowY:"auto",
+          background:"#fff", border:"1px solid #e2e8f0", borderRadius:6,
+          boxShadow:"0 4px 16px rgba(0,0,0,0.12)", marginTop:2,
+        }}>
+          {filtered.length === 0 ? (
+            <div style={{ padding:"10px 12px", color:"#94a3b8", fontSize:13 }}>No matches found</div>
+          ) : filtered.map(sc => (
+            <div
+              key={sc.id || sc.name}
+              onMouseDown={() => handleSelect(sc)}
+              style={{
+                padding:"9px 12px", fontSize:13, cursor:"pointer",
+                background: value === sc.name ? "#dbeafe" : undefined,
+                color: value === sc.name ? "#1d4ed8" : "#334155",
+                fontWeight: value === sc.name ? 700 : 400,
+                borderBottom:"1px solid #f1f5f9",
+              }}
+            >
+              {sc.name}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const MACHINE_STD_MINS = 8 * 60; // 8h cap per machine
 
 // Compute regular + overtime split for a single machine row
@@ -64,8 +139,10 @@ export default function OperatorTimeEntry({ user, onWorkLogged }) {
   const [subCategories, setSubCategories]     = useState([]);
   const [machinesList, setMachinesList]       = useState([]);
   const [selectedDate, setSelectedDate]       = useState(formatDate(TODAY));
+  const [calendarDate, setCalendarDate]       = useState(new Date(TODAY.getFullYear(), TODAY.getMonth(), 1));
+  const [dateStatusMap, setDateStatusMap]     = useState({}); // single source of truth: date -> totalMins
   const [form, setForm] = useState({
-    shift:"A", status:"P",
+    shift:"B", status:"P",
     workCategoryId: null, category:"",
     subCategoryId: null, subCategory:"",
     regularHrs:"", regularMins:"",
@@ -115,9 +192,59 @@ export default function OperatorTimeEntry({ user, onWorkLogged }) {
     }
   };
 
+  // Fetch ALL entries for the viewed month and build dateStatusMap (for calendar cells and dropdown icon).
+  // Always uses all approval statuses so the calendar and the entry-date dropdown always agree.
+  const fetchCalendarMonth = async (date) => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    try {
+      const y = date.getFullYear();
+      const m = date.getMonth();
+      const firstDay = new Date(y, m, 1);
+      let lastDay  = new Date(y, m + 1, 0);
+      if (firstDay > TODAY) return;
+      if (lastDay > TODAY) lastDay = TODAY;
+      const res = await fetch(
+        `${config.API_URL}/time-entries?date_from=${formatDate(firstDay)}&date_to=${formatDate(lastDay)}`,
+        { headers: { "Authorization": `Bearer ${token}` } }
+      );
+      if (res.ok) {
+        const entries = await res.json();
+        const map = {};
+        entries.forEach(e => {
+          const d = e.date;
+          const mins = (e.regularMins || 0) + (e.overtimeMins || 0);
+          map[d] = (map[d] || 0) + mins;
+        });
+        setDateStatusMap(prev => ({ ...prev, ...map }));
+      }
+    } catch (err) {
+      console.warn("Failed to fetch calendar month data", err);
+    }
+  };
+
   useEffect(() => {
     loadDropdowns();
   }, []);
+
+  // Refresh calendar colour map + dropdown status icons on month change or after a submission
+  useEffect(() => {
+    fetchCalendarMonth(calendarDate);
+  }, [calendarDate, submitted]); // eslint-disable-line
+
+  // Sync calendar view month to the selected date (without double-fetching if month unchanged)
+  useEffect(() => {
+    const d = new Date(selectedDate);
+    if (!isNaN(d.getTime())) {
+      const newMonthStart = new Date(d.getFullYear(), d.getMonth(), 1);
+      setCalendarDate(prev => {
+        if (prev.getFullYear() !== newMonthStart.getFullYear() || prev.getMonth() !== newMonthStart.getMonth()) {
+          return newMonthStart;
+        }
+        return prev;
+      });
+    }
+  }, [selectedDate, submitted]); // eslint-disable-line
 
   // Load sub-categories when workCategoryId changes (Cascading Dropdown)
   useEffect(() => {
@@ -163,6 +290,12 @@ export default function OperatorTimeEntry({ user, onWorkLogged }) {
   const totalMins = regularTotalMins + overtimeTotalMins;
   const pendingMins = Math.max(0, DAILY_STD_MINS - effectiveRegularMins);
 
+  const getDayStatus = (mins) => {
+    if (mins >= 480) return "green";
+    if (mins > 0) return "yellow";
+    return "red";
+  };
+
   const totalMachineHrs    = machineRows.reduce((s,r)=>s+(Number(r.machineHrs)||0)+(Number(r.machineMins)||0)/60,0);
   const totalMachineMins   = machineRows.reduce((s,r)=>s+machineSplit(r).total,0);
   const totalMachineRegMins= machineRows.reduce((s,r)=>s+machineSplit(r).regular,0);
@@ -175,12 +308,16 @@ export default function OperatorTimeEntry({ user, onWorkLogged }) {
   const removeMachineRow = (i) => setMachineRows((p)=>p.filter((_,idx)=>idx!==i));
   const updateMachineRow = (i,key,val) => setMachineRows((p)=>p.map((r,idx)=>idx===i?{...r,[key]:val}:r));
 
+  const isAbsent = form.status === "AB";
+
   const validate = () => {
     const e={};
-    if (!form.workCategoryId) e.workCategory = "Work Category is required.";
-    if (!form.subCategoryId || !form.subCategory) e.subCategory = "Sub Category is required.";
-    if (!form.remarks.trim()) e.remarks="Comments are mandatory.";
-    if (regularTotalMins===0&&overtimeTotalMins===0) e.hours="Please enter at least some hours worked.";
+    if (!isAbsent) {
+      if (!form.workCategoryId) e.workCategory = "Work Category is required.";
+      if (!form.subCategoryId || !form.subCategory) e.subCategory = "Sub Category is required.";
+      if (!form.remarks.trim()) e.remarks="Comments are mandatory.";
+      if (regularTotalMins===0&&overtimeTotalMins===0) e.hours="Please enter at least some hours worked.";
+    }
     setErrors(e);
     return Object.keys(e).length===0;
   };
@@ -233,7 +370,7 @@ export default function OperatorTimeEntry({ user, onWorkLogged }) {
           }
           setTimeout(()=>setSubmitted(null), 4000);
             setForm({
-              shift: "A", status: "P",
+              shift: "B", status: "P",
               workCategoryId: null,
               category: "",
               subCategoryId: null, subCategory: "",
@@ -292,7 +429,14 @@ export default function OperatorTimeEntry({ user, onWorkLogged }) {
                   <div>
                     <label style={{ display:"block", fontWeight:600, fontSize:13, color:"#475569", marginBottom:6 }}>Entry Date</label>
                     <select className="form-select" value={selectedDate} onChange={(e)=>setSelectedDate(e.target.value)}>
-                      {getLast14Days().map((d)=>{ const df=daysDiff(d); const lbl=df===0?"Today":df===1?"Yesterday":`${df} days ago`; return <option key={d} value={d}>{d} — {lbl}</option>; })}
+                      {getLast14Days().map((d)=>{ 
+                        const df=daysDiff(d); 
+                        const lbl=df===0?"Today":df===1?"Yesterday":`${df} days ago`; 
+                        const totalMins = dateStatusMap[d] || 0;
+                        const st = getDayStatus(totalMins);
+                        const icon = st === "green" ? " ✅" : st === "yellow" ? " ⏳" : " 🔴";
+                        return <option key={d} value={d}>{d} — {lbl}{icon}</option>; 
+                      })}
                     </select>
                     {entryMode==="approval" && <div style={{ marginTop:7, background:"#fffbeb", border:"1px solid #fde68a", borderRadius:7, padding:"7px 12px", fontSize:12.5, color:"#d97706", fontWeight:600 }}>⏳ Late entry — will be sent for admin approval.</div>}
                     {entryMode==="blocked"  && <div style={{ marginTop:7, background:"#fef2f2", border:"1px solid #fecaca", borderRadius:7, padding:"7px 12px", fontSize:12.5, color:"#dc2626", fontWeight:600 }}>🚫 This date is too old. Contact your admin.</div>}
@@ -313,10 +457,10 @@ export default function OperatorTimeEntry({ user, onWorkLogged }) {
                         {STATUS_OPTIONS.map((opt)=>(
                           <label key={opt.value} style={{
                             display:"flex", alignItems:"center", gap:6, padding:"8px 14px", borderRadius:8, cursor:"pointer",
-                            border:`2px solid ${form.status===opt.value?"#2563eb":"#e2e8f0"}`,
-                            background:form.status===opt.value?"#dbeafe":"#fff",
+                            border:`2px solid ${form.status===opt.value?(opt.value==="AB"?"#dc2626":"#2563eb"):"#e2e8f0"}`,
+                            background:form.status===opt.value?(opt.value==="AB"?"#fee2e2":"#dbeafe"):"#fff",
                             fontSize:13, fontWeight:form.status===opt.value?700:500,
-                            color:form.status===opt.value?"#1d4ed8":"#334155", transition:"all 0.15s",
+                            color:form.status===opt.value?(opt.value==="AB"?"#dc2626":"#1d4ed8"):"#334155", transition:"all 0.15s",
                           }}>
                             <input type="radio" name="status" value={opt.value} checked={form.status===opt.value} onChange={()=>set("status",opt.value)} style={{ display:"none" }} />
                             {opt.label}
@@ -325,10 +469,22 @@ export default function OperatorTimeEntry({ user, onWorkLogged }) {
                       </div>
                     </div>
 
-                    <div style={{ marginBottom:18 }}>
+                    {isAbsent && (
+                      <div style={{ background:"#fef2f2", border:"1px solid #fecaca", borderRadius:8, padding:"12px 16px", marginBottom:18 }}>
+                        <p style={{ margin:0, fontSize:13, fontWeight:600, color:"#dc2626" }}>
+                          🚫 Time entry is not allowed when Attendance Status is marked as Absent.
+                        </p>
+                        <p style={{ margin:"6px 0 0", fontSize:12, color:"#991b1b" }}>
+                          All work detail fields are disabled. Only the absence record will be saved.
+                        </p>
+                      </div>
+                    )}
+
+                    <div style={{ marginBottom:18, opacity: isAbsent ? 0.45 : 1 }}>
                       <label style={{ display:"block", fontWeight:600, fontSize:13, color:"#475569", marginBottom:6 }}>Work Category</label>
                       <select
                         className="form-select"
+                        disabled={isAbsent}
                         value={form.workCategoryId || ""}
                         onChange={(e) => {
                           const wc = workCategories.find(w => w.id === Number(e.target.value));
@@ -351,32 +507,24 @@ export default function OperatorTimeEntry({ user, onWorkLogged }) {
                       {errors.workCategory && <p style={{ fontSize:12, color:"#dc2626", margin:"4px 0 0", fontWeight:600 }}>⚠️ {errors.workCategory}</p>}
                     </div>
 
-                    <div style={{ marginBottom:18 }}>
+                    <div style={{ marginBottom:18, opacity: isAbsent ? 0.45 : 1 }}>
                       <label style={{ display:"block", fontWeight:600, fontSize:13, color:"#475569", marginBottom:6 }}>Sub-Category</label>
-                      <select
-                        className="form-select"
+                      <SearchableSelect
+                        options={subCategories}
                         value={form.subCategory}
-                        onChange={(e) => {
-                          const sc = subCategories.find(s => s.name === e.target.value);
-                          setForm(f => ({
-                            ...f,
-                            subCategory: e.target.value,
-                            subCategoryId: sc ? sc.id : null
-                          }));
-                          if (e.target.value) setErrors((er)=>({...er,subCategory:undefined}));
+                        disabled={isAbsent}
+                        error={errors.subCategory}
+                        placeholder="-- Search Sub Category --"
+                        onChange={(sc) => {
+                          setForm(f => ({ ...f, subCategory: sc.name, subCategoryId: sc.id }));
+                          setErrors((er)=>({...er,subCategory:undefined}));
                         }}
-                        style={{ borderColor: errors.subCategory ? "#dc2626" : undefined }}
-                      >
-                        <option value="">-- Select Sub Category --</option>
-                        {subCategories.map((sc) => (
-                          <option key={sc.id || sc.name} value={sc.name}>{sc.name}</option>
-                        ))}
-                      </select>
+                      />
                       {errors.subCategory && <p style={{ fontSize:12, color:"#dc2626", margin:"4px 0 0", fontWeight:600 }}>⚠️ {errors.subCategory}</p>}
                     </div>
 
                     {/* Machine entries */}
-                    <div style={{ marginBottom:18 }}>
+                    <div style={{ marginBottom:18, opacity: isAbsent ? 0.45 : 1 }}>
                       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
                         <label style={{ fontWeight:700, fontSize:13, color:"#0f172a", margin:0 }}>⚙️ Machine Operation Details</label>
                         <button type="button" onClick={addMachineRow} style={{ background:"#dbeafe", color:"#1d4ed8", border:"1px solid #bfdbfe", borderRadius:8, padding:"5px 12px", fontSize:12, fontWeight:700, cursor:"pointer" }}>
@@ -391,7 +539,7 @@ export default function OperatorTimeEntry({ user, onWorkLogged }) {
                               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr 36px", gap:10, alignItems:"end" }}>
                                 <div>
                                   {i===0&&<label style={{ display:"block", fontSize:11.5, fontWeight:600, color:"#64748b", marginBottom:4, textTransform:"uppercase", letterSpacing:"0.4px" }}>Machine</label>}
-                                  <select className="form-select" value={row.machine} onChange={(e)=>updateMachineRow(i,"machine",e.target.value)}>
+                                  <select className="form-select" disabled={isAbsent} value={row.machine} onChange={(e)=>updateMachineRow(i,"machine",e.target.value)}>
                                     {machinesList.map((m)=><option key={m.id} value={m.name}>{m.name}</option>)}
                                   </select>
                                 </div>
@@ -399,6 +547,7 @@ export default function OperatorTimeEntry({ user, onWorkLogged }) {
                                   {i===0&&<label style={{ display:"block", fontSize:11.5, fontWeight:600, color:"#64748b", marginBottom:4, textTransform:"uppercase", letterSpacing:"0.4px" }}>Hours</label>}
                                   <div style={{ position:"relative" }}>
                                     <input type="number" className="form-control" min="0" max="24" placeholder="0"
+                                      disabled={isAbsent}
                                       value={row.machineHrs}
                                       onChange={(e)=>updateMachineRow(i,"machineHrs",e.target.value)}
                                       style={{ paddingRight:36 }} />
@@ -409,6 +558,7 @@ export default function OperatorTimeEntry({ user, onWorkLogged }) {
                                   {i===0&&<label style={{ display:"block", fontSize:11.5, fontWeight:600, color:"#64748b", marginBottom:4, textTransform:"uppercase", letterSpacing:"0.4px" }}>Minutes</label>}
                                   <div style={{ position:"relative" }}>
                                     <input type="number" className="form-control" min="0" max="59" placeholder="0"
+                                      disabled={isAbsent}
                                       value={row.machineMins}
                                       onChange={(e)=>updateMachineRow(i,"machineMins",e.target.value)}
                                       style={{ paddingRight:36 }} />
@@ -446,15 +596,15 @@ export default function OperatorTimeEntry({ user, onWorkLogged }) {
 
                     {/* Hours */}
                     {errors.hours&&<div style={{ background:"#fef2f2", border:"1px solid #fecaca", borderRadius:6, padding:"7px 12px", fontSize:12.5, color:"#dc2626", fontWeight:600, marginBottom:10 }}>⚠️ {errors.hours}</div>}
-                    <div style={{ background:"#f8fafc", border:"1px solid #e2e8f0", borderRadius:10, padding:"16px", marginBottom:18 }}>
+                    <div style={{ background:"#f8fafc", border:"1px solid #e2e8f0", borderRadius:10, padding:"16px", marginBottom:18, opacity: isAbsent ? 0.45 : 1 }}>
                       <p style={{ fontWeight:700, fontSize:12, color:"#64748b", textTransform:"uppercase", letterSpacing:"0.5px", margin:"0 0 14px" }}>⏱ Hours Worked</p>
                       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
-                        <HrMinInput label="Regular Hours" hours={form.regularHrs} minutes={form.regularMins}
+                        <HrMinInput label="Regular Hours" hours={form.regularHrs} minutes={form.regularMins} disabled={isAbsent}
                           onHoursChange={(v)=>set("regularHrs",v)} onMinutesChange={(v)=>set("regularMins",v)} maxHours={24} />
-                        <HrMinInput label="Overtime Hours" hours={form.overtimeHrs} minutes={form.overtimeMins}
+                        <HrMinInput label="Overtime Hours" hours={form.overtimeHrs} minutes={form.overtimeMins} disabled={isAbsent}
                           onHoursChange={(v)=>set("overtimeHrs",v)} onMinutesChange={(v)=>set("overtimeMins",v)} maxHours={16} />
                       </div>
-                      {regularTotalMins>DAILY_STD_MINS&&(
+                      {regularTotalMins>DAILY_STD_MINS && !isAbsent && (
                         <div style={{ marginTop:10, background:"#fef2f2", border:"1px solid #fecaca", borderRadius:6, padding:"7px 12px", fontSize:12.5, color:"#dc2626", fontWeight:600 }}>
                           ⚠️ Regular hours exceed 8h limit. Reduce to ≤8h or the server will reject this entry.
                         </div>
@@ -462,22 +612,23 @@ export default function OperatorTimeEntry({ user, onWorkLogged }) {
                     </div>
 
                     {/* Mandatory remarks */}
-                    <div style={{ marginBottom:20 }}>
+                    <div style={{ marginBottom:20, opacity: isAbsent ? 0.45 : 1 }}>
                       <label style={{ display:"block", fontWeight:600, fontSize:13, color:"#475569", marginBottom:6 }}>
-                        Comments / Remarks <span style={{ color:"#dc2626" }}>*</span>
-                        <span style={{ fontSize:11, color:"#94a3b8", fontWeight:500, marginLeft:6 }}>(required)</span>
+                        Comments / Remarks {!isAbsent && <span style={{ color:"#dc2626" }}>*</span>}
+                        {!isAbsent && <span style={{ fontSize:11, color:"#94a3b8", fontWeight:500, marginLeft:6 }}>(required)</span>}
                       </label>
                       <textarea className="form-control" rows={3}
-                        placeholder="Describe the work / operations done today... (mandatory)"
+                        disabled={isAbsent}
+                        placeholder={isAbsent ? "Not required for absent entries" : "Describe the work / operations done today... (mandatory)"}
                         value={form.remarks}
                         onChange={(e)=>{ set("remarks",e.target.value); if(e.target.value.trim()) setErrors((er)=>({...er,remarks:undefined})); }}
-                        style={{ borderColor:errors.remarks?"#dc2626":undefined }}
+                        style={{ borderColor:errors.remarks?"#dc2626":undefined, cursor: isAbsent ? "not-allowed" : undefined }}
                       />
                       {errors.remarks&&<p style={{ fontSize:12, color:"#dc2626", margin:"4px 0 0", fontWeight:600 }}>⚠️ {errors.remarks}</p>}
                     </div>
 
                     <button type="submit" className="btn btn-primary w-100" style={{ padding:"11px", fontSize:14, fontWeight:700 }}>
-                      {entryMode==="approval"?"⏳ Send for Approval":"✓ Save & Submit"}
+                      {isAbsent ? "📋 Record Absence" : entryMode==="approval" ? "⏳ Send for Approval" : "✓ Save & Submit"}
                     </button>
                   </>
                 )}
@@ -544,15 +695,110 @@ export default function OperatorTimeEntry({ user, onWorkLogged }) {
               </div>
 
               <div style={{
-                background:form.status==="P"?"#f0fdf4":form.status==="HD"?"#eff6ff":form.status==="L"?"#fef2f2":"#fffbeb",
-                border:`1px solid ${form.status==="P"?"#bbf7d0":form.status==="HD"?"#bfdbfe":form.status==="L"?"#fecaca":"#fde68a"}`,
+                background:form.status==="P"?"#f0fdf4":form.status==="HD"?"#eff6ff":form.status==="L"?"#fef2f2":form.status==="AB"?"#fef2f2":"#fffbeb",
+                border:`1px solid ${form.status==="P"?"#bbf7d0":form.status==="HD"?"#bfdbfe":form.status==="L"?"#fecaca":form.status==="AB"?"#fecaca":"#fde68a"}`,
                 borderRadius:10, padding:"14px 16px",
               }}>
                 <p style={{ fontSize:11.5, fontWeight:700, color:"#64748b", textTransform:"uppercase", margin:"0 0 4px" }}>Status</p>
-                <p style={{ fontSize:18, fontWeight:800, margin:0, color:form.status==="P"?"#16a34a":form.status==="HD"?"#2563eb":form.status==="L"?"#dc2626":"#d97706" }}>
+                <p style={{ fontSize:18, fontWeight:800, margin:0, color:form.status==="P"?"#16a34a":form.status==="HD"?"#2563eb":(form.status==="L"||form.status==="AB")?"#dc2626":"#d97706" }}>
                   {STATUS_OPTIONS.find((s)=>s.value===form.status)?.label}
                 </p>
               </div>
+
+              {/* Monthly Calendar Status Indicator */}
+              {(() => {
+                const y = calendarDate.getFullYear();
+                const m = calendarDate.getMonth();
+                const daysInMonth = new Date(y, m + 1, 0).getDate();
+                const startDay = new Date(y, m, 1).getDay(); // 0 is Sunday
+                const offset = startDay === 0 ? 6 : startDay - 1; // Make Monday=0
+                
+                const handlePrev = () => setCalendarDate(new Date(y, m - 1, 1));
+                const handleNext = () => setCalendarDate(new Date(y, m + 1, 1));
+
+                const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+                
+                const cells = [];
+                for (let i = 0; i < offset; i++) cells.push(null);
+                for (let i = 1; i <= daysInMonth; i++) cells.push(i);
+
+                const weeks = [];
+                for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7));
+
+                return (
+                  <div style={{ background:"#f8fafc", border:"1px solid #e2e8f0", borderRadius:10, padding:"12px", marginTop:14, boxShadow:"0 1px 3px rgba(0,0,0,0.05)" }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", background:"#1e88e5", color:"#fff", padding:"8px 12px", borderRadius:"6px" }}>
+                      <button type="button" onClick={handlePrev} style={{ border:"none", background:"transparent", color:"#fff", cursor:"pointer", padding:"0", fontSize:14, fontWeight:"bold" }}>◀</button>
+                      <span style={{ fontWeight:700, fontSize:14 }}>{monthNames[m]} {y}</span>
+                      <button type="button" onClick={handleNext} style={{ border:"none", background:"transparent", color:"#fff", cursor:"pointer", padding:"0", fontSize:14, fontWeight:"bold" }}>▶</button>
+                    </div>
+                    <table style={{ width:"100%", marginTop:10, textAlign:"center", borderCollapse:"collapse", fontSize:12, tableLayout:"fixed" }}>
+                      <thead>
+                        <tr style={{ color:"#64748b" }}>
+                          <th style={{ fontWeight:600, paddingBottom:8 }}>Mo</th><th style={{ fontWeight:600, paddingBottom:8 }}>Tu</th><th style={{ fontWeight:600, paddingBottom:8 }}>We</th>
+                          <th style={{ fontWeight:600, paddingBottom:8 }}>Th</th><th style={{ fontWeight:600, paddingBottom:8 }}>Fr</th><th style={{ fontWeight:600, paddingBottom:8 }}>Sa</th><th style={{ fontWeight:600, paddingBottom:8 }}>Su</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {weeks.map((week, wi) => (
+                          <tr key={wi}>
+                            {week.map((day, di) => {
+                              if (!day) return <td key={di} style={{ padding: "4px" }}></td>;
+                              const dateStr = `${y}-${String(m+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+                              const isSelected = dateStr === selectedDate;
+                              const dObj = new Date(y, m, day);
+                              dObj.setHours(0,0,0,0);
+                              const isFuture = dObj > TODAY;
+                              
+                              let bg = "transparent";
+                              let color = "#334155";
+                              let border = "1px solid transparent";
+                              
+                              if (!isFuture) {
+                                const totalMins = dateStatusMap[dateStr] || 0;
+                                const st = getDayStatus(totalMins);
+                                if (st === "green") {
+                                  bg = "#16a34a"; color = "#fff"; // Green
+                                } else if (st === "yellow") {
+                                  bg = "#eab308"; color = "#fff"; // Yellow
+                                } else {
+                                  bg = "#dc2626"; color = "#fff"; // Red
+                                }
+                                border = "1px solid rgba(0,0,0,0.1)";
+                              }
+                              
+                              return (
+                                <td key={di} style={{ padding: "3px" }}>
+                                  <div 
+                                    onClick={() => {
+                                      if (!isFuture) {
+                                        const df = daysDiff(dateStr);
+                                        if (df >= 0 && df <= 14) {
+                                          setSelectedDate(dateStr);
+                                        }
+                                      }
+                                    }}
+                                    style={{ 
+                                      width:"28px", height:"28px", lineHeight:"26px", margin:"auto", 
+                                      background: bg, color: color, 
+                                      border: border, 
+                                      cursor: isFuture || daysDiff(dateStr) > 14 ? "not-allowed" : "pointer",
+                                      fontWeight: isSelected ? "bold" : "normal",
+                                      borderRadius: "4px",
+                                      boxShadow: isSelected ? "0 0 0 2px #fff, 0 0 0 4px #1d4ed8" : "none"
+                                    }}>
+                                    {day}
+                                  </div>
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </form>

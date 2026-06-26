@@ -135,6 +135,7 @@ def get_analytics_charts(
     date_from: Optional[str] = Query(None),
     date_to: Optional[str] = Query(None),
     dept: Optional[str] = Query(None),
+    emp_id: Optional[str] = Query(None),
     current_user: dict = Depends(get_current_user)
 ):
     """
@@ -156,4 +157,4 @@ def get_analytics_charts(
     if current_user["role"] == "ADMIN" and not dept:
         dept = current_user["dept"]
 
-    return service.get_analytics_charts(date_from=date_from, date_to=date_to, dept=dept)
+    return service.get_analytics_charts(date_from=date_from, date_to=date_to, dept=dept, emp_id=emp_id)

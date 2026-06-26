@@ -321,11 +321,12 @@ export default function EmployeeManagement({ adminUser }) {
           <div className="card" style={{ padding:0 }}>
             <div className="table-responsive">
               <table className="table table-bordered align-middle mb-0">
-                <thead><tr><th>NAME</th><th>EMAIL</th><th>DESIGNATION</th><th>DEPT</th><th>STATUS</th><th>TOGGLE</th></tr></thead>
+                <thead><tr><th>NAME</th><th>EMP NO</th><th>EMAIL</th><th>DESIGNATION</th><th>DEPT</th><th>STATUS</th><th>TOGGLE</th></tr></thead>
                 <tbody>
                   {employees.map((e)=>(
                     <tr key={e.id}>
                       <td style={{ fontWeight:600 }}>{e.name}</td>
+                      <td style={{ fontFamily:"monospace", fontSize:12, color:"#94a3b8" }}>{e.empNo || "—"}</td>
                       <td style={{ fontSize:13, color:"#475569" }}>{e.email}</td>
                       <td style={{ fontSize:13, color:"#475569" }}>{e.designation}</td>
                       <td>{e.dept}</td>

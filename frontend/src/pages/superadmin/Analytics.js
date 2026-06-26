@@ -67,6 +67,7 @@ const groupedOpts = {
 const GRAPH_TABS = [
   { key: "deptBar",  icon: "🏢", label: "Hours by Dept" },
   { key: "taskPie",  icon: "🥧", label: "Task Distribution" },
+  { key: "subTaskPie", icon: "📊", label: "Sub Task Distribution" },
   { key: "trend",    icon: "📈", label: "Hours Trend" },
   { key: "deptPie",  icon: "🍩", label: "Dept Distribution" },
   { key: "topEmp",   icon: "🏆", label: "Top Employees" },
@@ -81,12 +82,14 @@ export default function Analytics() {
 
   // Temp filter state (not applied until Search clicked)
   const [tempDept,    setTempDept]    = useState("all");
+  const [tempEmp,     setTempEmp]     = useState("all");
   const [tempDateFrom, setTempDateFrom] = useState("");
   const [tempDateTo,   setTempDateTo]   = useState("");
   const [dateError,    setDateError]    = useState("");
 
   // Active filter state
   const [selectedDept, setSelectedDept] = useState("all");
+  const [selectedEmp,  setSelectedEmp]  = useState("all");
   const [dateFrom,     setDateFrom]     = useState("");
   const [dateTo,       setDateTo]       = useState("");
 
@@ -106,6 +109,7 @@ export default function Analytics() {
     employeeProductivity: [],
     dailyTrends: [],
     taskDistribution: [],
+    subTaskDistribution: [],
     machineUtilization: { total: 0, active: 0, activePercent: 0 },
     totalRegularHours: 0,
     overtimeSummary: { totalOvertimeHours: 0, employeesWithOvertime: 0 },
@@ -126,11 +130,12 @@ export default function Analytics() {
   };
 
   // Fetch chart data with optional filters
-  const fetchCharts = async (token, dept, df, dt) => {
+  const fetchCharts = async (token, dept, emp, df, dt) => {
     setLoading(true);
     try {
       const qs = new URLSearchParams();
       if (dept && dept !== "all") qs.set("dept", dept);
+      if (emp && emp !== "all")   qs.set("emp_id", emp);
       if (df) qs.set("date_from", df);
       if (dt) qs.set("date_to", dt);
       const url = `${config.API_URL}/reports/analytics-charts${qs.toString() ? "?" + qs.toString() : ""}`;
@@ -158,7 +163,7 @@ export default function Analytics() {
         if (empRes.ok && mounted) setEmployees(await empRes.json());
 
         await fetchKpis(token);
-        await fetchCharts(token, "all", "", "");
+        await fetchCharts(token, "all", "all", "", "");
       } catch (err) {
         console.warn("Failed to load analytics", err);
       }
@@ -179,21 +184,29 @@ export default function Analytics() {
   const handleSearch = () => {
     if (!validate()) return;
     setSelectedDept(tempDept);
+    setSelectedEmp(tempEmp);
     setDateFrom(tempDateFrom);
     setDateTo(tempDateTo);
     const token = localStorage.getItem("token");
-    fetchCharts(token, tempDept, tempDateFrom, tempDateTo);
+    fetchCharts(token, tempDept, tempEmp, tempDateFrom, tempDateTo);
   };
 
   // ── Reset ────────────────────────────────────────────────────────────────────
   const handleReset = () => {
-    setTempDept("all"); setTempDateFrom(""); setTempDateTo(""); setDateError("");
-    setSelectedDept("all"); setDateFrom(""); setDateTo("");
+    setTempDept("all"); setTempEmp("all"); setTempDateFrom(""); setTempDateTo(""); setDateError("");
+    setSelectedDept("all"); setSelectedEmp("all"); setDateFrom(""); setDateTo("");
     const token = localStorage.getItem("token");
-    fetchCharts(token, "all", "", "");
+    fetchCharts(token, "all", "all", "", "");
   };
 
-  const hasFilter = selectedDept !== "all" || dateFrom || dateTo;
+  const hasFilter = selectedDept !== "all" || selectedEmp !== "all" || dateFrom || dateTo;
+  
+  const handleDeptChange = (e) => {
+    setTempDept(e.target.value);
+    setTempEmp("all");
+  };
+
+  const filteredEmployees = tempDept === "all" ? employees : employees.filter(e => e.dept === tempDept);
 
   // ── Chart data preparation ── PRODUCTIVITY = REGULAR HOURS ONLY ──────────────
 
@@ -216,6 +229,12 @@ export default function Analytics() {
   const taskPieData = {
     labels: taskSorted.map(d => d.category),
     datasets: [{ data: taskSorted.map(d => d.hours), backgroundColor: ["#2563EB","#3B82F6","#60A5FA","#93C5FD","#10B981","#34D399","#F59E0B","#FBBF24"], borderWidth: 2, borderColor: "#fff", hoverOffset: 6 }]
+  };
+
+  const subTaskSorted = [...chartData.subTaskDistribution].sort((a, b) => b.hours - a.hours);
+  const subTaskPieData = {
+    labels: subTaskSorted.map(d => d.category),
+    datasets: [{ data: subTaskSorted.map(d => d.hours), backgroundColor: COLORS18, borderWidth: 2, borderColor: "#fff", hoverOffset: 6 }]
   };
 
   // Top employees: regular hours only (productivity ranking — no OT inflation)
@@ -288,11 +307,18 @@ export default function Analytics() {
       {/* Filter bar — Search & Reset buttons */}
       <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, padding: "16px 20px", marginBottom: 20, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
         <div className="row g-3 align-items-end">
-          <div className="col-md-3">
+          <div className="col-md-2">
             <label style={{ fontSize: 12, fontWeight: 600, color: "#475569", display: "block", marginBottom: 5 }}>Department</label>
-            <select className="form-select" value={tempDept} onChange={e => setTempDept(e.target.value)}>
+            <select className="form-select" value={tempDept} onChange={handleDeptChange}>
               <option value="all">— All Departments —</option>
               {departments.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
+            </select>
+          </div>
+          <div className="col-md-3">
+            <label style={{ fontSize: 12, fontWeight: 600, color: "#475569", display: "block", marginBottom: 5 }}>Employee</label>
+            <select className="form-select" value={tempEmp} onChange={e => setTempEmp(e.target.value)}>
+              <option value="all">— All Employees —</option>
+              {filteredEmployees.map(e => <option key={e.id} value={e.id}>{e.name} ({e.empNo})</option>)}
             </select>
           </div>
           <div className="col-md-2">
@@ -306,10 +332,10 @@ export default function Analytics() {
               value={tempDateTo} onChange={e => { setTempDateTo(e.target.value); setDateError(""); }} />
           </div>
           <div className="col-md-3 d-flex gap-2 align-items-end">
-            <button className="btn btn-primary btn-sm" onClick={handleSearch} disabled={loading}>
+            <button className="btn btn-primary btn-sm" onClick={handleSearch} disabled={loading} style={{ flex: 1 }}>
               {loading ? "Loading…" : "Search"}
             </button>
-            <button className="btn btn-secondary btn-sm" onClick={handleReset} disabled={loading}>
+            <button className="btn btn-secondary btn-sm" onClick={handleReset} disabled={loading} style={{ flex: 1 }}>
               Reset
             </button>
             {loading && (
@@ -326,7 +352,7 @@ export default function Analytics() {
         )}
         {hasFilter && (
           <div style={{ marginTop: 10, fontSize: 12.5, color: "#2563eb", fontWeight: 600 }}>
-            Filters active:{selectedDept !== "all" && ` Dept: ${selectedDept}`}{dateFrom && ` | From: ${dateFrom}`}{dateTo && ` | To: ${dateTo}`}
+            Filters active:{selectedDept !== "all" && ` Dept: ${selectedDept}`}{selectedEmp !== "all" && ` | Emp: ${selectedEmp}`}{dateFrom && ` | From: ${dateFrom}`}{dateTo && ` | To: ${dateTo}`}
           </div>
         )}
       </div>
@@ -373,6 +399,18 @@ export default function Analytics() {
               <p style={{ textAlign: "center", padding: 50, color: "#94a3b8" }}>No time logs found.</p>
             ) : (
               <div style={{ height: H }}><Pie data={taskPieData} options={pieOpts()} /></div>
+            )}
+          </>
+        )}
+
+        {/* Sub Task Distribution */}
+        {activeGraph === "subTaskPie" && (
+          <>
+            <h6>Sub Category Distribution <span style={{ fontSize: 11, fontWeight: 500, color: "#64748b" }}>(Regular Hours)</span></h6>
+            {chartData.subTaskDistribution.length === 0 ? (
+              <p style={{ textAlign: "center", padding: 50, color: "#94a3b8" }}>No time logs found.</p>
+            ) : (
+              <div style={{ height: H }}><Pie data={subTaskPieData} options={pieOpts()} /></div>
             )}
           </>
         )}

@@ -73,9 +73,9 @@ echo  =============================================
 echo   DWM Portal is starting up!
 echo  =============================================
 echo.
-echo   Frontend  :  http://192.168.5.22:53005
-echo   Backend   :  http://192.168.5.22:58010
-echo   API Docs  :  http://192.168.5.22:58010/docs
+echo   Frontend  :  http://127.0.0.1:53005
+echo   Backend   :  http://127.0.0.1:58010
+echo   API Docs  :  http://127.0.0.1:58010/docs
 echo.
 echo   Run stop.bat to shut down both servers.
 echo.

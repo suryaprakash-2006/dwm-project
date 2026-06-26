@@ -520,7 +520,8 @@ class BusinessLogicService:
         self,
         date_from: Optional[str] = None,
         date_to: Optional[str] = None,
-        dept: Optional[str] = None
+        dept: Optional[str] = None,
+        emp_id: Optional[str] = None
     ) -> dict:
         """
         Analytics charts use ONLY Approved Regular Hours.
@@ -531,7 +532,8 @@ class BusinessLogicService:
             approval_status="Approved",
             date_from=date_from,
             date_to=date_to,
-            dept=dept
+            dept=dept,
+            emp_id=emp_id
         )
 
         # Productivity data structures — REGULAR HOURS ONLY
@@ -540,6 +542,7 @@ class BusinessLogicService:
         emp_regular: Dict[str, dict] = {}
         daily_regular: Dict[str, float] = {}
         task_regular: Dict[str, float] = {}
+        sub_task_regular: Dict[str, float] = {}
 
         # Overtime tracking — kept SEPARATE from productivity
         dept_overtime: Dict[str, float] = {}
@@ -551,9 +554,10 @@ class BusinessLogicService:
             dept_name = entry.get("dept") or "Unassigned"
             shift_name = entry.get("shift") or "A"
             emp_name = entry.get("empName") or "Unknown"
-            emp_id = entry.get("empId") or ""
+            emp_id_val = entry.get("empId") or ""
             date_str = entry.get("date") or ""
             cat = entry.get("category") or "General"
+            sub_cat = entry.get("subCategory") or "General"
 
             # Department — regular only for productivity chart
             if dept_name not in dept_regular:
@@ -568,17 +572,17 @@ class BusinessLogicService:
             shift_regular[shift_name] += reg_hrs
 
             # Employee — regular only for main productivity; OT tracked separately
-            if emp_id not in emp_regular:
-                emp_regular[emp_id] = {
-                    "empId": emp_id,
+            if emp_id_val not in emp_regular:
+                emp_regular[emp_id_val] = {
+                    "empId": emp_id_val,
                     "name": emp_name,
                     "regular": 0.0,
                     "dept": dept_name,
                     "shift": shift_name
                 }
-                emp_overtime[emp_id] = {"empId": emp_id, "name": emp_name, "overtime": 0.0, "dept": dept_name}
-            emp_regular[emp_id]["regular"] += reg_hrs
-            emp_overtime[emp_id]["overtime"] += ot_hrs
+                emp_overtime[emp_id_val] = {"empId": emp_id_val, "name": emp_name, "overtime": 0.0, "dept": dept_name}
+            emp_regular[emp_id_val]["regular"] += reg_hrs
+            emp_overtime[emp_id_val]["overtime"] += ot_hrs
 
             # Daily trends — regular only
             if date_str:
@@ -590,6 +594,10 @@ class BusinessLogicService:
             if cat not in task_regular:
                 task_regular[cat] = 0.0
             task_regular[cat] += reg_hrs
+
+            if sub_cat not in sub_task_regular:
+                sub_task_regular[sub_cat] = 0.0
+            sub_task_regular[sub_cat] += reg_hrs
 
         # Round all accumulated values
         for k in dept_regular:
@@ -605,6 +613,8 @@ class BusinessLogicService:
             daily_regular[k] = round(daily_regular[k], 2)
         for k in task_regular:
             task_regular[k] = round(task_regular[k], 2)
+        for k in sub_task_regular:
+            sub_task_regular[k] = round(sub_task_regular[k], 2)
 
         # Top 10 employees by REGULAR hours (productivity ranking — no OT inflation)
         top_employees = sorted(
@@ -653,6 +663,9 @@ class BusinessLogicService:
             "dailyTrends": daily_trends,
             "taskDistribution": [
                 {"category": k, "hours": v} for k, v in task_regular.items()
+            ],
+            "subTaskDistribution": [
+                {"category": k, "hours": v} for k, v in sub_task_regular.items()
             ],
             "machineUtilization": machine_stats,
             "totalRegularHours": total_regular_hrs,

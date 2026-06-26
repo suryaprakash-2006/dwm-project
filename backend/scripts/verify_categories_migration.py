@@ -6,7 +6,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 # Force connection to production for testing environment
 if not os.environ.get("MONGODB_URI"):
-    os.environ["MONGODB_URI"] = "mongodb://192.168.5.22:27017"
+    os.environ["MONGODB_URI"] = "mongodb://127.0.0.1:27017"
 
 from app.database.connection import db_connection
 

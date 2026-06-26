@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database.connection import db_connection
-from app.routes import auth, employees, departments, machines, work_categories, sub_categories, time_entries, notifications, reports
+from app.routes import auth, employees, departments, machines, work_categories, sub_categories, time_entries, notifications, reports, entry_edit_requests
 
 app = FastAPI(
     title="Daily Work Management (DWM) Portal API",
@@ -46,4 +46,5 @@ app.include_router(sub_categories.router)
 app.include_router(time_entries.router)
 app.include_router(notifications.router)
 app.include_router(reports.router)
+app.include_router(entry_edit_requests.router)
 

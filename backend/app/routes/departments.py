@@ -1,16 +1,28 @@
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from app.schemas.department import DepartmentCreate, DepartmentUpdate, DepartmentOut
-from app.repositories.db_repository import DepartmentsRepository
+from app.repositories.db_repository import DepartmentsRepository, EmployeesRepository
 from app.middleware.rbac import get_current_user, RoleChecker
 
 router = APIRouter(prefix="/departments", tags=["Departments"])
 dept_repo = DepartmentsRepository()
+emp_repo  = EmployeesRepository()
 
 @router.get("", response_model=List[DepartmentOut])
 def get_departments(current_user: dict = Depends(get_current_user)):
-    """Returns a list of all departments."""
-    return dept_repo.get_all()
+    """Returns a list of all departments with live member counts."""
+    depts = dept_repo.get_all()
+    # Compute live headCount: count ALL employees (active or not) per department name
+    all_emps = emp_repo.get_all()
+    dept_counts = {}
+    for e in all_emps:
+        dept_name = e.get("dept", "")
+        if dept_name:
+            dept_counts[dept_name] = dept_counts.get(dept_name, 0) + 1
+    for d in depts:
+        d["headCount"] = dept_counts.get(d.get("name", ""), 0)
+    return depts
+
 
 @router.get("/{id}", response_model=DepartmentOut)
 def get_department_by_id(id: int, current_user: dict = Depends(get_current_user)):

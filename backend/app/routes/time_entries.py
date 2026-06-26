@@ -67,13 +67,14 @@ def get_time_entries(
     # Enforce role logic: USER or OPERATOR can only access their own entries
     if current_user["role"] in ["USER", "OPERATOR"]:
         empId = current_user["id"]
-        empNo = current_user["empNo"]
+        # Do not enforce empNo filter; empId is sufficient and stable, whereas empNo may have changed in DB
+        empNo = None
 
     # ADMIN is automatically scoped to their own department
     if current_user["role"] == "ADMIN" and not dept:
         dept = current_user.get("dept")
 
-    return time_repo.get_all(
+    results = time_repo.get_all(
         emp_id=empId,
         emp_no=empNo,
         date=date,
@@ -84,6 +85,8 @@ def get_time_entries(
         month=month,
         shift=shift
     )
+
+    return results
 
 
 @router.post("", response_model=TimeEntryOut, status_code=status.HTTP_201_CREATED)

@@ -11,6 +11,7 @@ from app.models.database import (
     COL_SUB_CATEGORIES,
     COL_TIME_ENTRIES,
     COL_NOTIFICATIONS,
+    COL_ENTRY_EDIT_REQUESTS,
     COL_RESET_REQUESTS,
     COL_COUNTERS
 )
@@ -566,3 +567,9 @@ class ResetRequestsRepository(BaseRepository):
 
     def delete_by_emp_no(self, emp_no: str) -> bool:
         return self.collection.delete_one({"empNo": emp_no}).deleted_count > 0
+
+
+
+class EntryEditRequestsRepository(BaseRepository):
+    def __init__(self):
+        super().__init__(COL_ENTRY_EDIT_REQUESTS)

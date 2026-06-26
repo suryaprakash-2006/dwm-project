@@ -38,6 +38,7 @@ const barOpts = {
 const GRAPH_TABS = [
   { key:"pie", icon:"🥧", label:"Task Distribution" },
   { key:"bar", icon:"📊", label:"Hours (High → Low)" },
+  { key:"subTaskPie", icon:"📊", label:"Sub Task Distribution" },
 ];
 
 export default function WorkAnalytics() {
@@ -127,8 +128,20 @@ export default function WorkAnalytics() {
     .map(([l, v]) => ({ label: l, value: Math.round(v * 100) / 100 }))
     .sort((a, b) => b.value - a.value);
 
+  const subTaskMap = {};
+  filtered.forEach(r => {
+    if (r.approvalStatus === "Approved") {
+      const scat = r.subCategory || "General";
+      subTaskMap[scat] = (subTaskMap[scat] || 0) + ((r.regularMins + r.overtimeMins) / 60.0);
+    }
+  });
+  const subTaskSorted = Object.entries(subTaskMap)
+    .map(([l, v]) => ({ label: l, value: Math.round(v * 100) / 100 }))
+    .sort((a, b) => b.value - a.value);
+
   const pieData = { labels:taskSorted.map(d=>d.label), datasets:[{ data:taskSorted.map(d=>d.value), backgroundColor:PIE_COLORS, borderWidth:2, borderColor:"#fff", hoverOffset:6 }] };
   const barData = { labels:taskSorted.map(d=>d.label), datasets:[{ label:"Hours", data:taskSorted.map(d=>d.value), backgroundColor:GRAD_COLORS, borderRadius:6, borderSkipped:false }] };
+  const subTaskPieData = { labels:subTaskSorted.map(d=>d.label), datasets:[{ data:subTaskSorted.map(d=>d.value), backgroundColor:PIE_COLORS, borderWidth:2, borderColor:"#fff", hoverOffset:6 }] };
 
   return (
     <div className="page">
@@ -216,6 +229,7 @@ export default function WorkAnalytics() {
           <>
             {activeGraph==="pie" && (<><h6>Task Distribution</h6><div style={{ height:280 }}><Pie data={pieData} options={pieOpts} /></div></>)}
             {activeGraph==="bar" && (<><h6>Hours by Category — High to Low</h6><div style={{ height:280 }}><Bar data={barData} options={barOpts} /></div></>)}
+            {activeGraph==="subTaskPie" && (<><h6>Sub Category Distribution <span style={{ fontSize: 11, fontWeight: 500, color: "#64748b" }}>(Approved Only)</span></h6><div style={{ height:280 }}><Pie data={subTaskPieData} options={pieOpts} /></div></>)}
           </>
         )}
       </div>

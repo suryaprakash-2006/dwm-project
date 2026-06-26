@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
+import * as XLSX from "xlsx";
 import "../../styles/theme.css";
 import config from "../../config";
 
@@ -178,7 +179,7 @@ export default function Reports() {
 
     autoTable(doc, {
       startY: 130,
-      head: [["DATE", "EMP NO", "EMPLOYEE", "DEPARTMENT", "DESIGNATION", "WORK CATEGORY", "SUB CATEGORY", "REG HRS", "OT HRS", "TOTAL HRS", "APPROVAL"]],
+      head: [["DATE", "EMP NO", "EMPLOYEE", "DEPARTMENT", "DESIGNATION", "WORK CATEGORY", "SUB CATEGORY", "REG HRS", "OT HRS", "TOTAL HRS", "APPROVAL", "REMARKS"]],
       body: filtered.map((row) => [
         row.date,
         row.empNo || row.empId,
@@ -191,9 +192,10 @@ export default function Reports() {
         formatHours(row.overtimeHours),
         formatHours(row.totalHours),
         row.approvalStatus,
+        row.remarks || "—",
       ]),
       margin: { left: 40, right: 40 },
-      styles: { fontSize: 7, cellPadding: 3, overflow: "linebreak", valign: "middle" },
+      styles: { fontSize: 6.5, cellPadding: 3, overflow: "linebreak", valign: "middle" },
       headStyles: { fillColor: [29, 78, 216], textColor: 255 },
     });
 
@@ -216,16 +218,24 @@ export default function Reports() {
   };
 
   const exportExcel = () => {
-    const headers = ["DATE", "EMP ID", "EMPLOYEE", "DEPARTMENT", "DESIGNATION", "WORK CATEGORY", "SUB CATEGORY", "REG HOURS", "OT HOURS", "TOTAL HOURS", "APPROVAL STATUS"];
+    const headers = ["DATE", "EMP NO", "EMPLOYEE", "DEPARTMENT", "DESIGNATION", "WORK CATEGORY", "SUB CATEGORY", "REG HOURS", "OT HOURS", "TOTAL HOURS", "APPROVAL STATUS", "REMARKS"];
     const rows = filtered.map(r => [
-      r.date ? `="${r.date}"` : "", r.empNo || r.empId, r.employee, r.dept, r.designation || "—",
-      r.category, r.subCategory || "—", r.regularHours, r.overtimeHours, r.totalHours, r.approvalStatus
+      r.date || "", r.empNo || r.empId || "", r.employee || "", r.dept || "",
+      r.designation || "", r.category || "", r.subCategory || "",
+      r.regularHours, r.overtimeHours, r.totalHours, r.approvalStatus || "", r.remarks || ""
     ]);
-    const csv = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
-    const a = document.createElement("a");
-    a.setAttribute("href", encodeURI(csv));
-    a.setAttribute("download", `dwm_report_${today}.csv`);
-    document.body.appendChild(a); a.click(); a.remove();
+    const wsData = [headers, ...rows];
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    const colWidths = headers.map((h, ci) => {
+      const maxLen = Math.max(h.length, ...rows.map(row => String(row[ci] ?? "").length));
+      return { wch: Math.min(Math.max(maxLen + 4, 12), 80) };
+    });
+    // Remarks column (index 11) should be significantly wider
+    colWidths[11] = { wch: Math.max(colWidths[11].wch, 60) };
+    ws["!cols"] = colWidths;
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Report");
+    XLSX.writeFile(wb, `dwm_report_${today}.xlsx`);
   };
 
   return (
@@ -313,7 +323,7 @@ export default function Reports() {
                 <th>WORK CATEGORY</th>
                 <th>SUB CATEGORY</th>
                 <th>REG HRS</th><th>OT HRS</th><th>TOTAL HRS</th>
-                <th>ATTENDANCE</th><th>APPROVAL</th>
+                <th>ATTENDANCE</th><th>APPROVAL</th><th>REMARKS</th>
               </tr>
             </thead>
             <tbody>
@@ -335,6 +345,7 @@ export default function Reports() {
                   <td style={{ fontWeight: 700, fontFamily: "monospace", color: "#0f172a" }}>{r.totalHours}</td>
                   <td><StatusBadge status={r.status} /></td>
                   <td><ApprovalBadge status={r.approvalStatus} /></td>
+                  <td style={{ fontSize: 12, color: "#475569", maxWidth: 150, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={r.remarks}>{r.remarks || "—"}</td>
                 </tr>
               ))}
             </tbody>
@@ -345,7 +356,7 @@ export default function Reports() {
       <div className="d-flex gap-2 mt-3">
         <button onClick={exportJSON}  className="btn btn-outline-primary btn-sm">Export JSON</button>
         <button onClick={exportPDF}   className="btn btn-outline-primary btn-sm">Export PDF</button>
-        <button onClick={exportExcel} className="btn btn-outline-primary btn-sm">Export Excel (CSV)</button>
+        <button onClick={exportExcel} className="btn btn-outline-primary btn-sm">Export Excel (.xlsx)</button>
       </div>
     </div>
   );

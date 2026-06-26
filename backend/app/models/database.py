@@ -8,6 +8,7 @@ COL_WORK_CATEGORIES = "work_categories"
 COL_SUB_CATEGORIES = "sub_categories"
 COL_TIME_ENTRIES = "time_entries"
 COL_NOTIFICATIONS = "notifications"
+COL_ENTRY_EDIT_REQUESTS = "entry_edit_requests"
 COL_RESET_REQUESTS = "reset_requests"
 COL_COUNTERS = "counters"
 

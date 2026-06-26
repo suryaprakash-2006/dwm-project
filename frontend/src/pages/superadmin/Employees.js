@@ -428,7 +428,7 @@ export default function Employees({ superUser }) {
               <div className="table-responsive">
                 <table className="table table-bordered align-middle mb-0">
                   <thead>
-                    <tr><th>ID</th><th>Name</th><th>Email</th><th>Designation</th><th>Role</th><th>Department</th><th>Status</th><th>Actions</th></tr>
+                    <tr><th>INTERNAL ID</th><th>EMP NO</th><th>Name</th><th>Email</th><th>Designation</th><th>Role</th><th>Department</th><th>Status</th><th>Actions</th></tr>
                   </thead>
                   <tbody>
                     {Object.entries(deptGroups).map(([dept,emps])=>(
@@ -441,6 +441,7 @@ export default function Employees({ superUser }) {
                         {emps.map((emp)=>(
                           <tr key={emp.id}>
                             <td style={{ fontFamily:"monospace", fontSize:12, color:"#94a3b8" }}>{emp.id}</td>
+                            <td style={{ fontFamily:"monospace", fontSize:12, color:"#94a3b8" }}>{emp.empNo || "—"}</td>
                             <td style={{ fontWeight:600, color:"#0f172a" }}>{emp.name}</td>
                             <td style={{ fontSize:12, color:"#475569" }}>{emp.email}</td>
                             <td style={{ fontSize:12, color:"#475569" }}>{emp.designation||"—"}</td>

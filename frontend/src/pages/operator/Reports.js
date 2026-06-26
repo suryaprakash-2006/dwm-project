@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
+import * as XLSX from "xlsx";
 import "../../styles/theme.css";
 import config from "../../config";
 
@@ -196,19 +197,24 @@ export default function Reports() {
 
   const exportExcel = () => {
     const hdrs = ["DATE","SHIFT","CATEGORY","SUB-CATEGORY","REG HOURS","OT HOURS","STATUS","REMARKS"];
-    const csv = "data:text/csv;charset=utf-8," + [
-      hdrs.join(","),
-      ...filtered.map(r => [
-        r.date ? `="${r.date}"` : "", r.shift, r.category, r.subCategory,
-        (r.regularMins / 60.0).toFixed(2),
-        (r.overtimeMins / 60.0).toFixed(2),
-        r.status, `"${(r.remarks || "").replace(/"/g, '""')}"`
-      ].join(","))
-    ].join("\n");
-    const a = document.createElement("a");
-    a.setAttribute("href", encodeURI(csv));
-    a.setAttribute("download", `dwm_operator_report_${today}.csv`);
-    document.body.appendChild(a); a.click(); a.remove();
+    const rows = filtered.map(r => [
+      r.date || "", r.shift || "", r.category || "", r.subCategory || "",
+      (r.regularMins / 60.0).toFixed(2),
+      (r.overtimeMins / 60.0).toFixed(2),
+      r.status || "", r.remarks || ""
+    ]);
+    const wsData = [hdrs, ...rows];
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    const colWidths = hdrs.map((h, ci) => {
+      const maxLen = Math.max(h.length, ...rows.map(row => String(row[ci] ?? "").length));
+      return { wch: Math.min(Math.max(maxLen + 4, 12), 80) };
+    });
+    // Remarks column (index 7) should be significantly wider
+    colWidths[7] = { wch: Math.max(colWidths[7].wch, 60) };
+    ws["!cols"] = colWidths;
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Operator Report");
+    XLSX.writeFile(wb, `dwm_operator_report_${today}.xlsx`);
   };
 
   return (
@@ -347,7 +353,7 @@ export default function Reports() {
       <div className="d-flex gap-2 mt-3">
         <button onClick={exportJSON}  className="btn btn-outline-primary btn-sm">Export JSON</button>
         <button onClick={exportPDF}   className="btn btn-outline-primary btn-sm">Export PDF</button>
-        <button onClick={exportExcel} className="btn btn-outline-primary btn-sm">Export Excel (CSV)</button>
+        <button onClick={exportExcel} className="btn btn-outline-primary btn-sm">Export Excel (.xlsx)</button>
       </div>
     </div>
   );

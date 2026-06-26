@@ -33,6 +33,7 @@ const barOpts = {
 
 const GRAPH_TABS = [
   { key:"taskPie",     icon:"🥧", label:"Task Distribution"     },
+  { key:"subTaskPie",  icon:"📊", label:"Sub Task Distribution"  },
   { key:"taskBar",     icon:"📊", label:"Task Hours"             },
   { key:"machineBar",  icon:"⚙️", label:"Machine Hours"          },
   { key:"machinePie",  icon:"🍩", label:"Machine Distribution"   },
@@ -137,9 +138,21 @@ export default function WorkAnalytics() {
     .map(([l, v]) => ({ label: l, value: Math.round(v * 100) / 100 }))
     .sort((a, b) => b.value - a.value);
 
+  const subTaskMap = {};
+  filtered.forEach(r => {
+    if (r.approvalStatus === "Approved") {
+      const scat = r.subCategory || "General";
+      subTaskMap[scat] = (subTaskMap[scat] || 0) + ((r.regularMins + r.overtimeMins) / 60.0);
+    }
+  });
+  const subTaskSorted = Object.entries(subTaskMap)
+    .map(([l, v]) => ({ label: l, value: Math.round(v * 100) / 100 }))
+    .sort((a, b) => b.value - a.value);
+
   const totalMachineHrs = machineSorted.reduce((s, m) => s + m.value, 0);
 
   const taskPieData    = { labels:taskSorted.map(d=>d.label),    datasets:[{ data:taskSorted.map(d=>d.value),    backgroundColor:PIE_COLORS,     borderWidth:2, borderColor:"#fff", hoverOffset:6 }] };
+  const subTaskPieData = { labels:subTaskSorted.map(d=>d.label), datasets:[{ data:subTaskSorted.map(d=>d.value), backgroundColor:PIE_COLORS, borderWidth:2, borderColor:"#fff", hoverOffset:6 }] };
   const taskBarData    = { labels:taskSorted.map(d=>d.label),    datasets:[{ data:taskSorted.map(d=>d.value),    backgroundColor:PIE_COLORS, borderRadius:6, borderSkipped:false }] };
   const machineBarData = { labels:machineSorted.map(d=>d.label), datasets:[{ data:machineSorted.map(d=>d.value), backgroundColor:MACHINE_COLORS,  borderRadius:6, borderSkipped:false }] };
   const machinePieData = { labels:machineSorted.map(d=>d.label), datasets:[{ data:machineSorted.map(d=>d.value), backgroundColor:MACHINE_COLORS,  borderWidth:2, borderColor:"#fff", hoverOffset:6 }] };
@@ -247,6 +260,7 @@ export default function WorkAnalytics() {
         ) : (
           <>
             {activeGraph==="taskPie"    && (<><h6>Task Distribution</h6><div style={{ height:280 }}><Pie data={taskPieData} options={pieOpts} /></div></>)}
+            {activeGraph==="subTaskPie" && (<><h6>Sub Category Distribution <span style={{ fontSize: 11, fontWeight: 500, color: "#64748b" }}>(Approved Only)</span></h6><div style={{ height:280 }}><Pie data={subTaskPieData} options={pieOpts} /></div></>)}
             {activeGraph==="taskBar"    && (<><h6>Hours by Category — High to Low</h6><div style={{ height:280 }}><Bar data={taskBarData} options={barOpts} /></div></>)}
             {activeGraph==="machineBar" && (<><h6>Machine Operating Hours — High to Low</h6><div style={{ height:280 }}><Bar data={machineBarData} options={barOpts} /></div></>)}
             {activeGraph==="machinePie" && (<><h6>Machine Hours Distribution</h6><div style={{ height:280 }}><Pie data={machinePieData} options={pieOpts} /></div></>)}

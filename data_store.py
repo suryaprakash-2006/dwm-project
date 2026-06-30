@@ -49,7 +49,7 @@ if not _MONGO_URI:
     raise RuntimeError(
         "\n\n    MONGODB_URI is not set in your .env file.\n"
         "      Example for local server:\n"
-        "      MONGODB_URI=mongodb://dwm_user:yourpassword@127.0.0.1:27017/dwm_portal?authSource=dwm_portal\n"
+        "      MONGODB_URI=mongodb://dwm_user:yourpassword@192.168.5.22:27017/dwm_portal?authSource=dwm_portal\n"
     )
 
 try:

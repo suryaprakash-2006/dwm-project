@@ -16,10 +16,15 @@ set "FRONTEND_DIR=%ROOT_DIR%frontend"
 
 :: Check backend .env
 if not exist "%BACKEND_DIR%\.env" (
-    echo [ERROR] backend\.env not found!
-    echo         Please create backend\.env before starting.
-    pause
-    exit /b 1
+    if exist "%BACKEND_DIR%\.env.example" (
+        copy "%BACKEND_DIR%\.env.example" "%BACKEND_DIR%\.env" >nul
+        echo [INFO] Created backend\.env from backend\.env.example
+    ) else (
+        echo [ERROR] backend\.env not found!
+        echo         Please create backend\.env before starting.
+        pause
+        exit /b 1
+    )
 )
 
 :: Check venv
@@ -47,7 +52,7 @@ timeout /t 2 >nul
 :: ── Start Backend ─────────────────────────────────────────────────
 
 echo [1/3] Starting Backend (port 58010)...
-cscript //nologo "%~dp0run_hidden.vbs" cmd.exe /c cd /d "%BACKEND_DIR%" ^&^& "%BACKEND_DIR%\dwmvenv\Scripts\uvicorn.exe" app.main:app --host 0.0.0.0 --port 58010
+cscript //nologo "%~dp0run_hidden.vbs" cmd.exe /c cd /d "%BACKEND_DIR%" ^&^& "%BACKEND_DIR%\dwmvenv\Scripts\uvicorn.exe" app.main:app --host 0.0.0.0 --port 58010 --lifespan off
 
 :: Wait for backend to initialize before starting frontend
 echo [2/3] Waiting 8 seconds for backend to initialize...
@@ -57,13 +62,20 @@ timeout /t 8 >nul
 
 echo [3/3] Starting Frontend (port 53005)...
 
+:: Ensure frontend dependencies are installed locally
+if not exist "%FRONTEND_DIR%\node_modules\react-scripts\bin\react-scripts.js" (
+    echo       Frontend dependencies missing - running npm install...
+    echo       This may take 3-5 minutes. Please wait.
+    cd /d "%FRONTEND_DIR%" && call npm.cmd install --no-audit --no-fund
+)
+
 :: Build if no build folder exists
 if not exist "%FRONTEND_DIR%\build\index.html" (
     echo       Build folder missing - running npm run build first...
     echo       This may take 3-5 minutes. Please wait.
-    start "DWM Frontend" cmd /k "cd /d "%FRONTEND_DIR%" && npm run build && npx -y serve -s build -l 53005 --no-clipboard"
+    start "DWM Frontend" cmd /k "cd /d ""%FRONTEND_DIR%"" && call npm.cmd run build && call npx.cmd -y serve -s build -l 53005 --no-clipboard"
 ) else (
-    start "DWM Frontend" cmd /k "cd /d "%FRONTEND_DIR%" && npx -y serve -s build -l 53005 --no-clipboard"
+    start "DWM Frontend" cmd /k "cd /d ""%FRONTEND_DIR%"" && call npx.cmd -y serve -s build -l 53005 --no-clipboard"
 )
 
 :: ── Done ──────────────────────────────────────────────────────────
@@ -76,6 +88,7 @@ echo.
 echo   Frontend  :  http://192.168.5.22:53005
 echo   Backend   :  http://192.168.5.22:58010
 echo   API Docs  :  http://192.168.5.22:58010/docs
+echo   Network Access: http://192.168.5.22:58010 and http://192.168.5.22:53005
 echo.
 echo   Run stop.bat to shut down both servers.
 echo.

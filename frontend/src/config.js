@@ -6,14 +6,14 @@ const getApiUrl = () => {
 
   if (typeof window !== "undefined" && window.location) {
     const hostname = window.location.hostname;
-    if (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1") {
-      return "http://127.0.0.1:58010";
+    if (hostname === "localhost" || hostname === "192.168.5.22" || hostname === "::1") {
+      return "http://192.168.5.22:58010";
     }
 
     return `http://${hostname}:58010`;
   }
 
-  return "http://127.0.0.1:58010";
+  return "http://192.168.5.22:58010";
 };
 
 const API_URL = getApiUrl();

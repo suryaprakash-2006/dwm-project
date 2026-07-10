@@ -32,6 +32,7 @@ export default function Reports() {
   const [workRows,  setWorkRows]  = useState([]);
   const [loading,   setLoading]   = useState(false);
   const [dateError, setDateError] = useState("");
+  const [editModal, setEditModal] = useState({ open: false, entryId: null, newDescription: "" });
 
   const adminUser = JSON.parse(localStorage.getItem("user") || "{}");
   const dept = adminUser.department || adminUser.dept || "";
@@ -41,10 +42,18 @@ export default function Reports() {
   const [tempDateFrom, setTempDateFrom] = useState("");
   const [tempDateTo,   setTempDateTo]   = useState("");
 
+  // Category / SubCategory filter state
+  const [categories,        setCategories]        = useState([]);
+  const [subCategories,     setSubCategories]     = useState([]);
+  const [tempCategoryId,    setTempCategoryId]    = useState("");
+  const [tempSubCategoryId, setTempSubCategoryId] = useState("");
+
   // Active (applied) filter state
-  const [filterEmp, setFilterEmp] = useState("all");
-  const [dateFrom,  setDateFrom]  = useState("");
-  const [dateTo,    setDateTo]    = useState("");
+  const [filterEmp,         setFilterEmp]         = useState("all");
+  const [dateFrom,          setDateFrom]          = useState("");
+  const [dateTo,            setDateTo]            = useState("");
+  const [activeCategoryId,    setActiveCategoryId]    = useState("");
+  const [activeSubCategoryId, setActiveSubCategoryId] = useState("");
 
   // Load employees scoped to admin's department
   useEffect(() => {
@@ -64,6 +73,31 @@ export default function Reports() {
     })();
     return () => { mounted = false; };
   }, [dept]);
+
+  // -------- Load Work Categories on mount --------
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    fetch(`${config.API_URL}/work-categories`, {
+      headers: { "Authorization": `Bearer ${token}` }
+    })
+      .then(r => r.ok ? r.json() : [])
+      .then(data => setCategories(data))
+      .catch(() => {});
+  }, []);
+
+  // -------- Load Sub Categories when Category changes --------
+  useEffect(() => {
+    setTempSubCategoryId("");
+    setSubCategories([]);
+    if (!tempCategoryId) return;
+    const token = localStorage.getItem("token");
+    fetch(`${config.API_URL}/sub-categories?workCategoryId=${tempCategoryId}`, {
+      headers: { "Authorization": `Bearer ${token}` }
+    })
+      .then(r => r.ok ? r.json() : [])
+      .then(data => setSubCategories(data))
+      .catch(() => {});
+  }, [tempCategoryId]);
 
   // Fetch work-summary with filters
   const fetchReports = async (empId, df, dt) => {
@@ -101,22 +135,51 @@ export default function Reports() {
     setFilterEmp(tempEmp);
     setDateFrom(tempDateFrom);
     setDateTo(tempDateTo);
+    setActiveCategoryId(tempCategoryId);
+    setActiveSubCategoryId(tempSubCategoryId);
     fetchReports(tempEmp, tempDateFrom, tempDateTo);
   };
 
   // ── Reset ───────────────────────────────────────────────────────────────────
   const handleReset = () => {
     setTempEmp("all"); setTempDateFrom(""); setTempDateTo(""); setDateError("");
+    setTempCategoryId(""); setTempSubCategoryId(""); setSubCategories([]);
     setFilterEmp("all"); setDateFrom(""); setDateTo("");
+    setActiveCategoryId(""); setActiveSubCategoryId("");
     fetchReports("all", "", "");
   };
 
-  const filtered = filterEmp !== "all"
-    ? workRows.filter(r => r.empId === filterEmp)
-    : workRows;
+  // Client-side filtering: employee filter + category/subcategory filter
+  // (backend does not support category_id / sub_category_id params on work-summary)
+  const filtered = workRows.filter(r => {
+    if (filterEmp !== "all" && r.empId !== filterEmp) return false;
+    if (activeCategoryId    && Number(r.workCategoryId) !== Number(activeCategoryId))    return false;
+    if (activeSubCategoryId && Number(r.subCategoryId)  !== Number(activeSubCategoryId)) return false;
+    return true;
+  });
 
   const selectedEmpInfo = filterEmp !== "all" ? employees.find(e => e.id === filterEmp) : null;
   const selectedEmpName = selectedEmpInfo?.name;
+
+  const handleEditRequest = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${config.API_URL}/entry-edit-requests`, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ timeEntryId: editModal.entryId, newDescription: editModal.newDescription })
+      });
+      if (res.ok) {
+        alert("Edit request submitted successfully.");
+      } else {
+        alert("Failed to submit edit request.");
+      }
+    } catch (err) {
+      alert("Error submitting request.");
+    } finally {
+      setEditModal({ open: false, entryId: null, newDescription: "" });
+    }
+  };
 
   const exportJSON = () => {
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(filtered, null, 2));
@@ -254,11 +317,40 @@ export default function Reports() {
           <input type="date" className="form-control" max={today}
             value={tempDateTo} onChange={e => { setTempDateTo(e.target.value); setDateError(""); }} />
         </div>
-        <div className="col-md-3 d-flex align-items-end gap-2">
-          <button className="btn btn-primary btn-sm w-50" onClick={handleSearch} disabled={loading}>
+        <div className="col-md-2">
+          <label style={{ fontWeight: 600, fontSize: 12.5 }}>Category</label>
+          <select
+            className="form-select"
+            value={tempCategoryId}
+            onChange={e => setTempCategoryId(e.target.value)}
+          >
+            <option value="">— All —</option>
+            {categories.map(c => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        </div>
+        <div className="col-md-2">
+          <label style={{ fontWeight: 600, fontSize: 12.5 }}>Sub Category</label>
+          <select
+            className="form-select"
+            value={tempSubCategoryId}
+            onChange={e => setTempSubCategoryId(e.target.value)}
+            disabled={!tempCategoryId}
+          >
+            <option value="">— All —</option>
+            {subCategories.map(s => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
+        </div>
+        <div className="col-md-1 d-flex align-items-end gap-2">
+          <button className="btn btn-primary btn-sm" style={{ whiteSpace: "nowrap" }} onClick={handleSearch} disabled={loading}>
             {loading ? "…" : "Search"}
           </button>
-          <button className="btn btn-secondary btn-sm w-50" onClick={handleReset} disabled={loading}>
+        </div>
+        <div className="col-md-1 d-flex align-items-end">
+          <button className="btn btn-secondary btn-sm w-100" onClick={handleReset} disabled={loading}>
             Reset
           </button>
         </div>
@@ -269,12 +361,26 @@ export default function Reports() {
       )}
 
       {/* Active filter chips */}
-      {filterEmp !== "all" && (
-        <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 12 }}>
-          <span style={{ background: "#dbeafe", color: "#1d4ed8", fontSize: 12, fontWeight: 600, padding: "3px 12px", borderRadius: 20, display: "flex", alignItems: "center", gap: 6 }}>
-            👤 {selectedEmpName}
-            <button onClick={() => setFilterEmp("all")} style={{ border: "none", background: "transparent", cursor: "pointer", color: "#1d4ed8", fontWeight: 900, padding: 0, fontSize: 14 }}>×</button>
-          </span>
+      {(filterEmp !== "all" || activeCategoryId || activeSubCategoryId) && (
+        <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 12, flexWrap: "wrap" }}>
+          {filterEmp !== "all" && (
+            <span style={{ background: "#dbeafe", color: "#1d4ed8", fontSize: 12, fontWeight: 600, padding: "3px 12px", borderRadius: 20, display: "flex", alignItems: "center", gap: 6 }}>
+              👤 {selectedEmpName}
+              <button onClick={() => setFilterEmp("all")} style={{ border: "none", background: "transparent", cursor: "pointer", color: "#1d4ed8", fontWeight: 900, padding: 0, fontSize: 14 }}>×</button>
+            </span>
+          )}
+          {activeCategoryId && (
+            <span style={{ background: "#f0fdf4", color: "#16a34a", fontSize: 12, fontWeight: 600, padding: "3px 12px", borderRadius: 20, display: "flex", alignItems: "center", gap: 6 }}>
+              📂 {categories.find(c => String(c.id) === String(activeCategoryId))?.name || activeCategoryId}
+              <button onClick={() => { setActiveCategoryId(""); setActiveSubCategoryId(""); }} style={{ border: "none", background: "transparent", cursor: "pointer", color: "#16a34a", fontWeight: 900, padding: 0, fontSize: 14 }}>×</button>
+            </span>
+          )}
+          {activeSubCategoryId && (
+            <span style={{ background: "#fefce8", color: "#ca8a04", fontSize: 12, fontWeight: 600, padding: "3px 12px", borderRadius: 20, display: "flex", alignItems: "center", gap: 6 }}>
+              🏷️ {subCategories.find(s => String(s.id) === String(activeSubCategoryId))?.name || activeSubCategoryId}
+              <button onClick={() => setActiveSubCategoryId("")} style={{ border: "none", background: "transparent", cursor: "pointer", color: "#ca8a04", fontWeight: 900, padding: 0, fontSize: 14 }}>×</button>
+            </span>
+          )}
           <span style={{ fontSize: 12, color: "#94a3b8" }}>{filtered.length} record{filtered.length !== 1 ? "s" : ""}</span>
         </div>
       )}
@@ -286,14 +392,16 @@ export default function Reports() {
               <tr>
                 <th>DATE</th><th>EMP NO</th><th>EMPLOYEE</th>
                 <th>DESIGNATION</th><th>CATEGORY</th><th>SUB CATEGORY</th>
-                <th>REG HRS</th><th>OT HRS</th><th>TOTAL HRS</th><th>STATUS</th><th>REMARKS</th>
+                <th>REG HRS</th><th>OT HRS</th><th>TOTAL HRS</th><th>STATUS</th>
+                <th style={{ minWidth: 280 }}>REMARKS</th>
+                <th>ACTIONS</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={9} style={{ textAlign: "center", padding: 30 }}>Loading…</td></tr>
+                <tr><td colSpan={11} style={{ textAlign: "center", padding: 30 }}>Loading…</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={9} style={{ textAlign: "center", color: "#94a3b8", padding: "28px", fontSize: 14 }}>No records found.</td></tr>
+                <tr><td colSpan={11} style={{ textAlign: "center", color: "#94a3b8", padding: "28px", fontSize: 14 }}>No records found.</td></tr>
               ) : filtered.map((r, i) => (
                 <tr key={i}>
                   <td style={{ fontWeight: 600, color: "#334155" }}>{r.date}</td>
@@ -306,7 +414,27 @@ export default function Reports() {
                   <td style={{ fontWeight: 600, fontFamily: "monospace", color: r.overtimeHours > 0 ? "#d97706" : "#94a3b8" }}>{r.overtimeHours}</td>
                   <td style={{ fontWeight: 700, fontFamily: "monospace" }}>{r.totalHours}</td>
                   <td><StatusBadge status={r.status} /></td>
-                  <td style={{ fontSize: 12, color: "#475569", maxWidth: 150, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={r.remarks}>{r.remarks || "—"}</td>
+                  <td
+                    style={{
+                      maxWidth: '200px',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                    title={r.remarks || ""}
+                  >
+                    {r.remarks || "—"}
+                  </td>
+                  <td>
+                    {(r.approvalStatus === "Pending" || r.approvalStatus === "Approved") && r.id && (
+                      <button
+                        className="btn btn-sm btn-outline-primary"
+                        onClick={() => setEditModal({ open: true, entryId: r.id, newDescription: "" })}
+                      >
+                        Edit
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -319,6 +447,31 @@ export default function Reports() {
         <button onClick={exportPDF}   className="btn btn-outline-primary btn-sm">Export PDF</button>
         <button onClick={exportExcel} className="btn btn-outline-primary btn-sm">Export Excel (.xlsx)</button>
       </div>
+
+      {/* Edit Modal */}
+      {editModal.open && (
+        <div style={{
+          position: "fixed", top: 0, left: 0, width: "100%", height: "100%",
+          background: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000
+        }}>
+          <div style={{ background: "#fff", padding: "20px", borderRadius: "8px", width: "400px" }}>
+            <h5>Request Edit</h5>
+            <div className="mb-3">
+              <label>New Description / Reason</label>
+              <textarea
+                className="form-control"
+                rows={3}
+                value={editModal.newDescription}
+                onChange={e => setEditModal({ ...editModal, newDescription: e.target.value })}
+              ></textarea>
+            </div>
+            <div className="d-flex justify-content-end gap-2">
+              <button className="btn btn-secondary" onClick={() => setEditModal({ open: false, entryId: null, newDescription: "" })}>Cancel</button>
+              <button className="btn btn-primary" onClick={handleEditRequest}>Submit Request</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

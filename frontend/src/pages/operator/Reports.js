@@ -38,12 +38,44 @@ export default function Reports() {
   const [tempDateFrom, setTempDateFrom] = useState("");
   const [tempDateTo,   setTempDateTo]   = useState("");
 
+  // Category / SubCategory filter state
+  const [categories,        setCategories]        = useState([]);
+  const [subCategories,     setSubCategories]     = useState([]);
+  const [tempCategoryId,    setTempCategoryId]    = useState("");
+  const [tempSubCategoryId, setTempSubCategoryId] = useState("");
+
   // active (applied) filter state
   const [activeFilters, setActiveFilters] = useState({});
   const [loading,       setLoading]       = useState(false);
   const [dateError,     setDateError]     = useState("");
+  const [editModal,     setEditModal]     = useState({ open: false, entryId: null, newDescription: "" });
 
   const user = JSON.parse(localStorage.getItem("user") || "{}");
+
+  // -------- Load Work Categories on mount --------
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    fetch(`${config.API_URL}/work-categories`, {
+      headers: { "Authorization": `Bearer ${token}` }
+    })
+      .then(r => r.ok ? r.json() : [])
+      .then(data => setCategories(data))
+      .catch(() => {});
+  }, []);
+
+  // -------- Load Sub Categories when Category changes --------
+  useEffect(() => {
+    setTempSubCategoryId("");
+    setSubCategories([]);
+    if (!tempCategoryId) return;
+    const token = localStorage.getItem("token");
+    fetch(`${config.API_URL}/sub-categories?workCategoryId=${tempCategoryId}`, {
+      headers: { "Authorization": `Bearer ${token}` }
+    })
+      .then(r => r.ok ? r.json() : [])
+      .then(data => setSubCategories(data))
+      .catch(() => {});
+  }, [tempCategoryId]);
 
   // Load all entries on mount (default view)
   const fetchEntries = async (params = {}) => {
@@ -62,7 +94,7 @@ export default function Reports() {
         const data = await res.json();
         setTimeEntries(data);
         // client-side machine filter (machine not yet a backend param)
-        applyClientFilter(data, params.machine || "All", params.dateFrom || "", params.dateTo || "");
+        applyClientFilter(data, params.machine || "All", params.dateFrom || "", params.dateTo || "", params.categoryId || "", params.subCategoryId || "");
       }
     } catch (err) {
       console.warn("Failed to fetch time entries:", err);
@@ -71,11 +103,14 @@ export default function Reports() {
     }
   };
 
-  const applyClientFilter = (entries, machine, dateFrom, dateTo) => {
+  const applyClientFilter = (entries, machine, dateFrom, dateTo, categoryId, subCategoryId) => {
     const result = entries.filter(r => {
       if (machine !== "All" && !(r.machineRows || []).some(m => (m.machine || m.name) === machine)) return false;
       if (dateFrom && r.date < dateFrom) return false;
       if (dateTo   && r.date > dateTo)   return false;
+      // Client-side category/subcategory filter (backend does not support these params)
+      if (categoryId    && Number(r.workCategoryId) !== Number(categoryId))    return false;
+      if (subCategoryId && Number(r.subCategoryId)  !== Number(subCategoryId)) return false;
       return true;
     });
     setFiltered(result);
@@ -101,8 +136,16 @@ export default function Reports() {
     if (tempMachine  && tempMachine !== "All") active["Machine"] = tempMachine;
     if (tempDateFrom) active["From"] = tempDateFrom;
     if (tempDateTo)   active["To"]   = tempDateTo;
+    if (tempCategoryId) {
+      const cat = categories.find(c => String(c.id) === String(tempCategoryId));
+      active["Category"] = cat ? cat.name : tempCategoryId;
+    }
+    if (tempSubCategoryId) {
+      const sub = subCategories.find(s => String(s.id) === String(tempSubCategoryId));
+      active["Sub Category"] = sub ? sub.name : tempSubCategoryId;
+    }
     setActiveFilters(active);
-    fetchEntries({ dateFrom: tempDateFrom, dateTo: tempDateTo, machine: tempMachine });
+    fetchEntries({ dateFrom: tempDateFrom, dateTo: tempDateTo, machine: tempMachine, categoryId: tempCategoryId, subCategoryId: tempSubCategoryId });
   };
 
   // ---------- Reset ----------
@@ -110,9 +153,32 @@ export default function Reports() {
     setTempMachine("All");
     setTempDateFrom("");
     setTempDateTo("");
+    setTempCategoryId("");
+    setTempSubCategoryId("");
+    setSubCategories([]);
     setDateError("");
     setActiveFilters({});
     fetchEntries();
+  };
+
+  const handleEditRequest = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${config.API_URL}/entry-edit-requests`, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ timeEntryId: editModal.entryId, newDescription: editModal.newDescription })
+      });
+      if (res.ok) {
+        alert("Edit request submitted successfully.");
+      } else {
+        alert("Failed to submit edit request.");
+      }
+    } catch (err) {
+      alert("Error submitting request.");
+    } finally {
+      setEditModal({ open: false, entryId: null, newDescription: "" });
+    }
   };
 
   // ---------- Exports ----------
@@ -239,7 +305,8 @@ export default function Reports() {
 
       {/* Filters */}
       <div style={{ background:"#f8fafc", border:"1px solid #e2e8f0", borderRadius:10, padding:"14px 20px", marginBottom:16 }}>
-        <div className="d-flex align-items-center gap-3 flex-wrap">
+        {/* Row 1: Machine + Date Range */}
+        <div className="d-flex align-items-center gap-3 flex-wrap" style={{ marginBottom: 10 }}>
           <label style={{ margin:0, fontWeight:600, fontSize:13, color:"#475569" }}>Machine:</label>
           <select className="form-select" style={{ width:180 }} value={tempMachine} onChange={e => setTempMachine(e.target.value)}>
             {allMachines.map(m => <option key={m} value={m}>{m}</option>)}
@@ -252,6 +319,36 @@ export default function Reports() {
           <span style={{ fontSize:12.5, color:"#94a3b8" }}>to</span>
           <input type="date" className="form-control" style={{ width:150 }} max={today}
             value={tempDateTo} onChange={e => { setTempDateTo(e.target.value); setDateError(""); }} />
+        </div>
+
+        {/* Row 2: Category + SubCategory + Search/Reset */}
+        <div className="d-flex align-items-center gap-3 flex-wrap">
+          <label style={{ margin:0, fontWeight:600, fontSize:13, color:"#475569" }}>Category:</label>
+          <select
+            className="form-select"
+            style={{ width:200 }}
+            value={tempCategoryId}
+            onChange={e => setTempCategoryId(e.target.value)}
+          >
+            <option value="">— All Categories —</option>
+            {categories.map(c => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+
+          <label style={{ margin:"0 0 0 4px", fontWeight:600, fontSize:13, color:"#475569" }}>Sub Category:</label>
+          <select
+            className="form-select"
+            style={{ width:200 }}
+            value={tempSubCategoryId}
+            onChange={e => setTempSubCategoryId(e.target.value)}
+            disabled={!tempCategoryId}
+          >
+            <option value="">— All Sub Categories —</option>
+            {subCategories.map(s => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
 
           <button className="btn btn-primary btn-sm" onClick={handleApply} disabled={loading}>
             {loading ? "Loading…" : "Search"}
@@ -296,12 +393,14 @@ export default function Reports() {
                 <th>REG HRS</th>
                 <th>OT HRS</th>
                 <th>STATUS</th>
+                <th style={{ minWidth: 280 }}>REMARKS</th>
+                <th>ACTIONS</th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={8} style={{ textAlign:"center", padding:28, color:"#94a3b8" }}>
+                  <td colSpan={9} style={{ textAlign:"center", padding:28, color:"#94a3b8" }}>
                     {loading ? "Loading…" : "No work logs found."}
                   </td>
                 </tr>
@@ -341,6 +440,27 @@ export default function Reports() {
                       <td style={{ fontWeight:600, fontFamily:"monospace" }}>{(r.regularMins / 60.0).toFixed(2)}</td>
                       <td style={{ fontWeight:600, fontFamily:"monospace", color:r.overtimeMins>0?"#d97706":"#94a3b8" }}>{(r.overtimeMins / 60.0).toFixed(2)}</td>
                       <td><StatusBadge status={r.status} /></td>
+                      <td
+                        style={{
+                          maxWidth: '200px',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                        title={r.remarks || ""}
+                      >
+                        {r.remarks || "—"}
+                      </td>
+                      <td>
+                        {(r.approvalStatus === "Pending" || r.approvalStatus === "Approved") && (
+                          <button
+                            className="btn btn-sm btn-outline-primary"
+                            onClick={() => setEditModal({ open: true, entryId: r.id, newDescription: "" })}
+                          >
+                            Edit
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   );
                 })
@@ -355,6 +475,31 @@ export default function Reports() {
         <button onClick={exportPDF}   className="btn btn-outline-primary btn-sm">Export PDF</button>
         <button onClick={exportExcel} className="btn btn-outline-primary btn-sm">Export Excel (.xlsx)</button>
       </div>
+
+      {/* Edit Modal */}
+      {editModal.open && (
+        <div style={{
+          position: "fixed", top: 0, left: 0, width: "100%", height: "100%",
+          background: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000
+        }}>
+          <div style={{ background: "#fff", padding: "20px", borderRadius: "8px", width: "400px" }}>
+            <h5>Request Edit</h5>
+            <div className="mb-3">
+              <label>New Description / Reason</label>
+              <textarea
+                className="form-control"
+                rows={3}
+                value={editModal.newDescription}
+                onChange={e => setEditModal({ ...editModal, newDescription: e.target.value })}
+              ></textarea>
+            </div>
+            <div className="d-flex justify-content-end gap-2">
+              <button className="btn btn-secondary" onClick={() => setEditModal({ open: false, entryId: null, newDescription: "" })}>Cancel</button>
+              <button className="btn btn-primary" onClick={handleEditRequest}>Submit Request</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

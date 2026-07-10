@@ -232,6 +232,7 @@ export default function TimeEntry({ user, onWorkLogged }) {
   // Refresh daily limit & sync calendar view month whenever selected date or submission changes
   useEffect(() => {
     fetchDailyLimit(selectedDate);
+    fetchDraftEntry(selectedDate);
     const d = new Date(selectedDate);
     if (!isNaN(d.getTime())) {
       const newMonthStart = new Date(d.getFullYear(), d.getMonth(), 1);
@@ -272,10 +273,41 @@ export default function TimeEntry({ user, onWorkLogged }) {
         console.warn("Failed to load subcategories for category", wcId, err);
         setSubCategories([]);
       }
-      // NO AUTO-SELECT: Reset subcategory selection and require user to choose manually
-      setForm(f => ({ ...f, subCategoryId: null, subCategory: "" }));
     })();
   }, [form.workCategoryId]);
+
+  const fetchDraftEntry = async (dateStr) => {
+    if (!user?.id) return;
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    try {
+      const res = await fetch(
+        `${config.API_URL}/time-entries?date=${dateStr}&empId=${user.id}`,
+        { headers: { "Authorization": `Bearer ${token}` } }
+      );
+      if (res.ok) {
+        const entries = await res.json();
+        const draft = entries.find(e => e.approvalStatus === "Draft");
+        if (draft) {
+          setForm({
+            shift: draft.shift || "B",
+            status: draft.status || "P",
+            workCategoryId: draft.workCategoryId || null,
+            category: draft.category || "",
+            subCategoryId: draft.subCategoryId || null,
+            subCategory: draft.subCategory || "",
+            regularHrs: draft.regularMins ? Math.floor(draft.regularMins / 60) : "",
+            regularMins: draft.regularMins ? draft.regularMins % 60 : "",
+            overtimeHrs: draft.overtimeMins ? Math.floor(draft.overtimeMins / 60) : "",
+            overtimeMins: draft.overtimeMins ? draft.overtimeMins % 60 : "",
+            remarks: draft.remarks || ""
+          });
+        }
+      }
+    } catch (err) {
+      console.warn("Failed to fetch draft entry", err);
+    }
+  };
 
 
 
@@ -309,22 +341,22 @@ export default function TimeEntry({ user, onWorkLogged }) {
     ? Math.max(0, apiRemainingMins - regularTotalMins)
     : Math.max(0, DAILY_STD_MINS - regularTotalMins);
 
-  const validate = () => {
+  const validate = (isDraft) => {
     const e = {};
     if (!isAbsent) {
       if (!form.workCategoryId) e.workCategory = "Work Category is required.";
       if (!form.subCategoryId || !form.subCategory) e.subCategory = "Sub Category is required.";
-      if (!form.remarks.trim()) e.remarks = "Comments are mandatory.";
-      if (regularTotalMins===0 && overtimeTotalMins===0) e.hours = "Please enter at least some hours worked.";
+      if (!isDraft && !form.remarks.trim()) e.remarks = "Comments are mandatory.";
+      if (!isDraft && regularTotalMins===0 && overtimeTotalMins===0) e.hours = "Please enter at least some hours worked.";
     }
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
+  const handleSubmit = (e, isDraft = false) => {
+    if (e) e.preventDefault();
     if (entryMode==="blocked") return;
-    if (!validate()) return;
+    if (!validate(isDraft)) return;
 
     const token = localStorage.getItem("token");
     if (!token) return;
@@ -341,7 +373,8 @@ export default function TimeEntry({ user, onWorkLogged }) {
       status: form.status,
       regularMins: regularTotalMins,
       overtimeMins: overtimeTotalMins,
-      remarks: form.remarks
+      remarks: form.remarks,
+      approvalStatus: isDraft ? "Draft" : undefined
     };
 
     (async () => {
@@ -357,7 +390,9 @@ export default function TimeEntry({ user, onWorkLogged }) {
 
         if (res.ok) {
           const created = await res.json();
-          if (created.approvalStatus === "Pending") {
+          if (isDraft) {
+            setSubmitted("draft");
+          } else if (created.approvalStatus === "Pending") {
             setSubmitted("approval");
             setPendingRequests((prev) => [created, ...prev]);
           } else {
@@ -408,8 +443,9 @@ export default function TimeEntry({ user, onWorkLogged }) {
 
         {submitted==="direct"   && <div className="alert alert-success">✅ Time entry submitted successfully!</div>}
         {submitted==="approval" && <div className="alert alert-warning">⏳ Late entry — approval request sent to admin.</div>}
+        {submitted==="draft" && <div className="alert alert-info">📝 Draft saved successfully!</div>}
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={(e) => handleSubmit(e, false)}>
           <div className="row g-4">
             <div className="col-lg-8">
               <div style={{ background:"#fff", border:"1px solid #e2e8f0", borderRadius:12, padding:"24px 28px", boxShadow:"0 1px 3px rgba(0,0,0,0.06)" }}>
@@ -577,9 +613,14 @@ export default function TimeEntry({ user, onWorkLogged }) {
                       {errors.remarks && <p style={{ fontSize:12, color:"#dc2626", margin:"4px 0 0", fontWeight:600 }}>⚠️ {errors.remarks}</p>}
                     </div>
 
-                    <button type="submit" className="btn btn-primary w-100" style={{ padding:"11px", fontSize:14, fontWeight:700 }}>
-                      {isAbsent ? "📋 Record Absence" : entryMode==="approval" ? "⏳ Send for Approval" : "✓ Save & Submit"}
-                    </button>
+                    <div style={{ display: "flex", gap: "10px" }}>
+                      <button type="button" className="btn btn-secondary w-100" style={{ padding:"11px", fontSize:14, fontWeight:700 }} onClick={(e) => handleSubmit(e, true)}>
+                        📝 Save for Later
+                      </button>
+                      <button type="submit" className="btn btn-primary w-100" style={{ padding:"11px", fontSize:14, fontWeight:700 }}>
+                        {isAbsent ? "📋 Record Absence" : entryMode==="approval" ? "⏳ Send for Approval" : "✓ Save & Submit"}
+                      </button>
+                    </div>
                   </>
                 )}
               </div>

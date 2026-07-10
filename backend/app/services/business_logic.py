@@ -108,8 +108,8 @@ class BusinessLogicService:
 
         for entry in existing:
             status_val = entry.get("approvalStatus")
-            if status_val == "Rejected":
-                # Rejected entries must NOT count towards daily limits
+            if status_val in ("Rejected", "Draft"):
+                # Rejected and Draft entries must NOT count towards daily limits
                 continue
             reg = entry.get("regularMins", 0)
             ot = entry.get("overtimeMins", 0)
@@ -164,10 +164,11 @@ class BusinessLogicService:
         delta = today_start - target_date
 
         # Determine approval status based on delay
-        if delta.days > 3:
-            entry_data["approvalStatus"] = "Pending"
-        else:
-            entry_data["approvalStatus"] = "Approved"
+        if entry_data.get("approvalStatus") != "Draft":
+            if delta.days > 3:
+                entry_data["approvalStatus"] = "Pending"
+            else:
+                entry_data["approvalStatus"] = "Approved"
 
         submitted_regular_mins = entry_data.get("regularMins", 0)
         submitted_overtime_mins = entry_data.get("overtimeMins", 0)
@@ -285,7 +286,7 @@ class BusinessLogicService:
         for e in existing:
             if e["id"] == entry_id:
                 continue
-            if e.get("approvalStatus") == "Rejected":
+            if e.get("approvalStatus") in ("Rejected", "Draft"):
                 continue
             other_reg += e.get("regularMins", 0)
             other_ot += e.get("overtimeMins", 0)
@@ -459,6 +460,14 @@ class BusinessLogicService:
                 wc = self.wc_repo.get_by_id(entry["workCategoryId"])
                 if wc:
                     work_category_name = wc["name"]
+
+            # Resolve subCategory name from subCategoryId if present, else use subCategory string
+            sub_category_name = entry.get("subCategory", "")
+            if entry.get("subCategoryId"):
+                sc = self.sc_repo.get_by_id(entry["subCategoryId"])
+                if sc:
+                    sub_category_name = sc["name"]
+
             summary.append({
                 "date": entry["date"],
                 "empId": entry["empId"],
@@ -468,7 +477,7 @@ class BusinessLogicService:
                 "designation": entry["designation"],
                 "shift": entry.get("shift", ""),
                 "category": work_category_name,
-                "subCategory": entry["subCategory"],
+                "subCategory": sub_category_name,
                 "workCategoryId": entry.get("workCategoryId"),
                 "subCategoryId": entry.get("subCategoryId"),
                 "regularHours": reg_hrs,
@@ -558,6 +567,10 @@ class BusinessLogicService:
             date_str = entry.get("date") or ""
             cat = entry.get("category") or "General"
             sub_cat = entry.get("subCategory") or "General"
+            if entry.get("subCategoryId"):
+                sc = self.sc_repo.get_by_id(entry["subCategoryId"])
+                if sc:
+                    sub_cat = sc["name"]
 
             # Department — regular only for productivity chart
             if dept_name not in dept_regular:

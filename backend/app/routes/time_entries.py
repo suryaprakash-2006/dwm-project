@@ -6,7 +6,12 @@ from app.schemas.time_entry import (
     TimeEntryOut,
     TimeEntryApprovalPayload
 )
-from app.repositories.db_repository import TimeEntriesRepository, EmployeesRepository
+from app.repositories.db_repository import (
+    TimeEntriesRepository, 
+    EmployeesRepository,
+    WorkCategoriesRepository,
+    SubCategoriesRepository
+)
 from app.services.business_logic import BusinessLogicService
 from app.middleware.rbac import get_current_user, RoleChecker
 from app.core.config import settings
@@ -15,6 +20,8 @@ from datetime import datetime as _dt
 router = APIRouter(prefix="/time-entries", tags=["Time Entries"])
 time_repo = TimeEntriesRepository()
 emp_repo = EmployeesRepository()
+wc_repo = WorkCategoriesRepository()
+sc_repo = SubCategoriesRepository()
 service = BusinessLogicService()
 
 # Config-driven limits — never hardcode
@@ -85,6 +92,16 @@ def get_time_entries(
         month=month,
         shift=shift
     )
+
+    for entry in results:
+        if entry.get("workCategoryId"):
+            wc = wc_repo.get_by_id(entry["workCategoryId"])
+            if wc:
+                entry["category"] = wc["name"]
+        if entry.get("subCategoryId"):
+            sc = sc_repo.get_by_id(entry["subCategoryId"])
+            if sc:
+                entry["subCategory"] = sc["name"]
 
     return results
 
@@ -211,6 +228,40 @@ def reject_time_entry(
     })
 
     return updated
+
+
+@router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_draft_time_entry(
+    id: int,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Deletes a Draft time entry.
+    - Only the owning USER or OPERATOR may delete their own draft.
+    - Only entries with approvalStatus == 'Draft' may be deleted via this endpoint.
+    - ADMIN and SUPER_ADMIN may also delete any draft (for admin cleanup).
+    """
+    entry = time_repo.get_by_id(id)
+    if not entry:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Time entry with ID {id} not found"
+        )
+
+    if entry.get("approvalStatus") != "Draft":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only Draft entries can be deleted via this endpoint."
+        )
+
+    if current_user["role"] in ["USER", "OPERATOR"] and entry["empId"] != current_user["id"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You are not authorized to delete this entry."
+        )
+
+    time_repo.collection.delete_one({"id": id})
+    return
 
 
 @router.get("/daily-limit-check")

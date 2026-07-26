@@ -212,6 +212,7 @@ export default function OperatorTimeEntry({ user, onWorkLogged }) {
         const entries = await res.json();
         const map = {};
         entries.forEach(e => {
+          if (e.approvalStatus === "Draft") return; // Exclude drafts from calendar calculations
           const d = e.date;
           const mins = (e.regularMins || 0) + (e.overtimeMins || 0);
           map[d] = (map[d] || 0) + mins;

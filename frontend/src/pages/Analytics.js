@@ -72,9 +72,11 @@ const Analytics = () => {
   };
 
   // -------- Aggregations --------
-  const totalHours = filtered.reduce((acc, e) => acc + ((e.regularMins || 0) + (e.overtimeMins || 0)) / 60.0, 0);
+  // Draft entries are excluded from all analytics calculations
+  const nonDraftFiltered = filtered.filter(e => e.approvalStatus !== "Draft");
+  const totalHours = nonDraftFiltered.reduce((acc, e) => acc + ((e.regularMins || 0) + (e.overtimeMins || 0)) / 60.0, 0);
 
-  const deptCounts = filtered.reduce((acc, e) => {
+  const deptCounts = nonDraftFiltered.reduce((acc, e) => {
     const key = e.category || "General";
     acc[key] = (acc[key] || 0) + 1;
     return acc;
@@ -88,7 +90,7 @@ const Analytics = () => {
     }],
   };
 
-  const machineCounts = filtered.reduce((acc, e) => {
+  const machineCounts = nonDraftFiltered.reduce((acc, e) => {
     (e.machineRows || []).forEach(m => {
       const name = m.machine || m.name || "Unknown";
       acc[name] = (acc[name] || 0) + 1;
@@ -105,7 +107,7 @@ const Analytics = () => {
 
   // Group hours by date for trend line
   const dateMap = {};
-  filtered.forEach(e => {
+  nonDraftFiltered.forEach(e => {
     const d = e.date || "Unknown";
     dateMap[d] = (dateMap[d] || 0) + ((e.regularMins || 0) + (e.overtimeMins || 0)) / 60.0;
   });

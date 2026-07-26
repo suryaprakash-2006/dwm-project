@@ -5,7 +5,7 @@ from pydantic import BaseModel
 load_dotenv()
 
 class Settings(BaseModel):
-    MONGODB_URI: str = os.getenv("MONGODB_URI", "mongodb://192.168.5.22:27017")
+    MONGODB_URI: str = os.getenv("MONGODB_URI", "mongodb://localhost:27017")
     MONGODB_DB_NAME: str = os.getenv("MONGODB_DB_NAME", "dwm_portal")
     JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", "supersecretkeychangeinproduction12345")
     JWT_ALGORITHM: str = os.getenv("JWT_ALGORITHM", "HS256")

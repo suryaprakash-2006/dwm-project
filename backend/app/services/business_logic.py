@@ -469,6 +469,7 @@ class BusinessLogicService:
                     sub_category_name = sc["name"]
 
             summary.append({
+                "id": entry["id"],
                 "date": entry["date"],
                 "empId": entry["empId"],
                 "empNo": entry["empNo"],
@@ -481,7 +482,9 @@ class BusinessLogicService:
                 "workCategoryId": entry.get("workCategoryId"),
                 "subCategoryId": entry.get("subCategoryId"),
                 "regularHours": reg_hrs,
+                "regularMins": entry["regularMins"],
                 "overtimeHours": ot_hrs,
+                "overtimeMins": entry["overtimeMins"],
                 "totalHours": round(reg_hrs + ot_hrs, 2),
                 "status": entry["status"],
                 "remarks": entry["remarks"],
@@ -496,11 +499,13 @@ class BusinessLogicService:
         machine_count = len(self.machine_repo.get_all())
         active_machines = len(self.machine_repo.get_all(active=True))
 
-        all_entries = self.time_repo.get_all()
+        all_entries_raw = self.time_repo.get_all()
+        # Exclude Drafts entirely from KPIs
+        all_entries = [e for e in all_entries_raw if e.get("approvalStatus") != "Draft"]
         total_entries = len(all_entries)
-        pending_entries = len([e for e in all_entries if e["approvalStatus"] == "Pending"])
-        approved_entries = len([e for e in all_entries if e["approvalStatus"] == "Approved"])
-        rejected_entries = len([e for e in all_entries if e["approvalStatus"] == "Rejected"])
+        pending_entries = len([e for e in all_entries if e.get("approvalStatus") == "Pending"])
+        approved_entries = len([e for e in all_entries if e.get("approvalStatus") == "Approved"])
+        rejected_entries = len([e for e in all_entries if e.get("approvalStatus") == "Rejected"])
 
         # KPIs — based on approved entries only
         approved_only = [e for e in all_entries if e["approvalStatus"] == "Approved"]

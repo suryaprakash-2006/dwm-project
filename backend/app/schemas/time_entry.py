@@ -7,7 +7,7 @@ class TimeEntryBase(BaseModel):
     shift: str = Field("A", description="A, B, or C")
     date: str = Field(..., description="YYYY-MM-DD format")
     category: str = Field("General", description="Work category name — kept for backward compatibility")
-    subCategory: str = Field(..., description="Sub-task category name — kept for backward compatibility")
+    subCategory: str = Field("", description="Sub-task category name — kept for backward compatibility")
     workCategoryId: Optional[int] = Field(None, description="FK to work_categories.id — for analytics and reporting")
     subCategoryId: Optional[int] = Field(None, description="FK to sub_categories.id — for analytics and reporting")
     status: str = Field("P", description="P (Present), HD (Half Day), L (Leave), OD (On Duty)")
@@ -29,7 +29,7 @@ class TimeEntryBase(BaseModel):
 
 
 class TimeEntryCreate(TimeEntryBase):
-    pass
+    approvalStatus: Optional[str] = None
 
 
 class TimeEntryUpdate(BaseModel):

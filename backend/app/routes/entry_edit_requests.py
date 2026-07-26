@@ -5,11 +5,13 @@ from datetime import datetime
 from app.schemas.entry_edit_request import EntryEditRequestCreate, EntryEditRequestOut
 from app.middleware.rbac import get_current_user, RoleChecker
 from app.repositories.db_repository import EntryEditRequestsRepository, TimeEntriesRepository
+from app.services.business_logic import BusinessLogicService
 
 router = APIRouter(prefix="/entry-edit-requests", tags=["Entry Edit Requests"])
 
 edit_req_repo = EntryEditRequestsRepository()
 time_repo = TimeEntriesRepository()
+service = BusinessLogicService()
 
 @router.post("", response_model=EntryEditRequestOut, status_code=status.HTTP_201_CREATED)
 def create_edit_request(
@@ -31,6 +33,7 @@ def create_edit_request(
         "requestedBy": current_user["id"],
         "oldDescription": time_entry.get("remarks", ""),
         "newDescription": payload.newDescription,
+        "newData": payload.newData,
         "status": "Pending",
         "requestedAt": datetime.now().isoformat(),
         "approvedBy": None,
@@ -77,8 +80,13 @@ def approve_edit_request(
     if req["status"] != "Pending":
         raise HTTPException(status_code=400, detail="Request is already processed")
         
-    # Update the time entry's remarks
-    time_repo.update(req["timeEntryId"], {"remarks": req["newDescription"]})
+    # Update the time entry
+    if req.get("newData"):
+        # The frontend provides the entire object to update.
+        service.update_time_entry(req["timeEntryId"], req["newData"])
+    else:
+        # Fallback for old requests that only updated remarks
+        service.update_time_entry(req["timeEntryId"], {"remarks": req["newDescription"]})
     
     # Update the request status
     updates = {

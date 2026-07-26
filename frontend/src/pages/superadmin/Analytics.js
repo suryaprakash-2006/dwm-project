@@ -228,7 +228,7 @@ export default function Analytics() {
   const taskSorted = [...chartData.taskDistribution].sort((a, b) => b.hours - a.hours);
   const taskPieData = {
     labels: taskSorted.map(d => d.category),
-    datasets: [{ data: taskSorted.map(d => d.hours), backgroundColor: ["#2563EB","#3B82F6","#60A5FA","#93C5FD","#10B981","#34D399","#F59E0B","#FBBF24"], borderWidth: 2, borderColor: "#fff", hoverOffset: 6 }]
+    datasets: [{ data: taskSorted.map(d => d.hours), backgroundColor: COLORS18, borderWidth: 2, borderColor: "#fff", hoverOffset: 6 }]
   };
 
   const subTaskSorted = [...chartData.subTaskDistribution].sort((a, b) => b.hours - a.hours);

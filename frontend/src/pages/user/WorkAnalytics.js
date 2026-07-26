@@ -7,8 +7,13 @@ import config from "../../config";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Tooltip, Legend, ChartDataLabels);
 
+const generateColors = (count) => {
+  if (!count) return [];
+  return Array.from({ length: count }, (_, i) => `hsl(${(i * 360) / count}, 70%, 55%)`);
+};
+
 const GRAD_COLORS = ["#2563EB","#3B82F6","#60A5FA","#93C5FD","#10B981","#F59E0B"];
-const PIE_COLORS  = ["#2563EB","#1D4ED8","#60A5FA","#93C5FD","#10B981","#34D399","#F59E0B","#FBBF24"];
+
 
 const pieOpts = {
   responsive:true, maintainAspectRatio:false,
@@ -115,12 +120,14 @@ export default function WorkAnalytics() {
   };
 
   // -------- Aggregations --------
-  const totalRegularHours  = filtered.reduce((s, r) => s + (r.regularMins  || 0) / 60.0, 0);
-  const totalOvertimeHours = filtered.reduce((s, r) => s + (r.overtimeMins || 0) / 60.0, 0);
+  // Draft entries are excluded from all analytics calculations
+  const nonDraftFiltered = filtered.filter(r => r.approvalStatus !== "Draft");
+  const totalRegularHours  = nonDraftFiltered.reduce((s, r) => s + (r.regularMins  || 0) / 60.0, 0);
+  const totalOvertimeHours = nonDraftFiltered.reduce((s, r) => s + (r.overtimeMins || 0) / 60.0, 0);
   const totalHours         = totalRegularHours + totalOvertimeHours;
 
   const taskMap = {};
-  filtered.forEach(r => {
+  nonDraftFiltered.forEach(r => {
     const cat = r.category || "General";
     taskMap[cat] = (taskMap[cat] || 0) + ((r.regularMins + r.overtimeMins) / 60.0);
   });
@@ -139,9 +146,9 @@ export default function WorkAnalytics() {
     .map(([l, v]) => ({ label: l, value: Math.round(v * 100) / 100 }))
     .sort((a, b) => b.value - a.value);
 
-  const pieData = { labels:taskSorted.map(d=>d.label), datasets:[{ data:taskSorted.map(d=>d.value), backgroundColor:PIE_COLORS, borderWidth:2, borderColor:"#fff", hoverOffset:6 }] };
-  const barData = { labels:taskSorted.map(d=>d.label), datasets:[{ label:"Hours", data:taskSorted.map(d=>d.value), backgroundColor:GRAD_COLORS, borderRadius:6, borderSkipped:false }] };
-  const subTaskPieData = { labels:subTaskSorted.map(d=>d.label), datasets:[{ data:subTaskSorted.map(d=>d.value), backgroundColor:PIE_COLORS, borderWidth:2, borderColor:"#fff", hoverOffset:6 }] };
+  const pieData = { labels:taskSorted.map(d=>d.label), datasets:[{ data:taskSorted.map(d=>d.value), backgroundColor:generateColors(taskSorted?.length || subTaskSorted?.length || 10), borderWidth:2, borderColor:"#fff", hoverOffset:6 }] };
+  const barData = { labels:taskSorted.map(d=>d.label), datasets:[{ label:"Hours", data:taskSorted.map(d=>d.value), backgroundColor:generateColors(taskSorted?.length || 10), borderRadius:6, borderSkipped:false }] };
+  const subTaskPieData = { labels:subTaskSorted.map(d=>d.label), datasets:[{ data:subTaskSorted.map(d=>d.value), backgroundColor:generateColors(taskSorted?.length || subTaskSorted?.length || 10), borderWidth:2, borderColor:"#fff", hoverOffset:6 }] };
 
   return (
     <div className="page">

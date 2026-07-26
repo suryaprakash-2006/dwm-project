@@ -7,8 +7,13 @@ import config from "../../config";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Tooltip, Legend, ChartDataLabels);
 
-const MACHINE_COLORS = ["#2563EB","#3B82F6","#60A5FA","#93C5FD","#bfdbfe","#818cf8","#a5b4fc"];
-const PIE_COLORS     = ["#2563EB","#1D4ED8","#60A5FA","#93C5FD","#10B981","#34D399","#F59E0B","#FBBF24"];
+const generateColors = (count) => {
+  if (!count) return [];
+  return Array.from({ length: count }, (_, i) => `hsl(${(i * 360) / count}, 70%, 55%)`);
+};
+
+
+
 
 const pieOpts = {
   responsive:true, maintainAspectRatio:false,
@@ -151,11 +156,11 @@ export default function WorkAnalytics() {
 
   const totalMachineHrs = machineSorted.reduce((s, m) => s + m.value, 0);
 
-  const taskPieData    = { labels:taskSorted.map(d=>d.label),    datasets:[{ data:taskSorted.map(d=>d.value),    backgroundColor:PIE_COLORS,     borderWidth:2, borderColor:"#fff", hoverOffset:6 }] };
-  const subTaskPieData = { labels:subTaskSorted.map(d=>d.label), datasets:[{ data:subTaskSorted.map(d=>d.value), backgroundColor:PIE_COLORS, borderWidth:2, borderColor:"#fff", hoverOffset:6 }] };
-  const taskBarData    = { labels:taskSorted.map(d=>d.label),    datasets:[{ data:taskSorted.map(d=>d.value),    backgroundColor:PIE_COLORS, borderRadius:6, borderSkipped:false }] };
-  const machineBarData = { labels:machineSorted.map(d=>d.label), datasets:[{ data:machineSorted.map(d=>d.value), backgroundColor:MACHINE_COLORS,  borderRadius:6, borderSkipped:false }] };
-  const machinePieData = { labels:machineSorted.map(d=>d.label), datasets:[{ data:machineSorted.map(d=>d.value), backgroundColor:MACHINE_COLORS,  borderWidth:2, borderColor:"#fff", hoverOffset:6 }] };
+  const taskPieData    = { labels:taskSorted.map(d=>d.label),    datasets:[{ data:taskSorted.map(d=>d.value),    backgroundColor:generateColors(taskSorted?.length || subTaskSorted?.length || 10),     borderWidth:2, borderColor:"#fff", hoverOffset:6 }] };
+  const subTaskPieData = { labels:subTaskSorted.map(d=>d.label), datasets:[{ data:subTaskSorted.map(d=>d.value), backgroundColor:generateColors(taskSorted?.length || subTaskSorted?.length || 10), borderWidth:2, borderColor:"#fff", hoverOffset:6 }] };
+  const taskBarData    = { labels:taskSorted.map(d=>d.label),    datasets:[{ data:taskSorted.map(d=>d.value),    backgroundColor:generateColors(taskSorted?.length || subTaskSorted?.length || 10), borderRadius:6, borderSkipped:false }] };
+  const machineBarData = { labels:machineSorted.map(d=>d.label), datasets:[{ data:machineSorted.map(d=>d.value), backgroundColor:generateColors(machineSorted?.length || 10),  borderRadius:6, borderSkipped:false }] };
+  const machinePieData = { labels:machineSorted.map(d=>d.label), datasets:[{ data:machineSorted.map(d=>d.value), backgroundColor:generateColors(machineSorted?.length || 10),  borderWidth:2, borderColor:"#fff", hoverOffset:6 }] };
 
   return (
     <div className="page">

@@ -7,7 +7,12 @@ import config from "../../config";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Tooltip, Legend, ChartDataLabels);
 
-const PIE_COLORS = ["#2563EB", "#1D4ED8", "#3B82F6", "#60A5FA", "#10B981", "#34D399", "#F59E0B", "#FBBF24"];
+const generateColors = (count) => {
+  if (!count) return [];
+  return Array.from({ length: count }, (_, i) => `hsl(${(i * 360) / count}, 70%, 55%)`);
+};
+
+
 
 const pieOpts = {
   responsive: true, maintainAspectRatio: false,
@@ -108,12 +113,12 @@ export default function WorkAnalytics({ user }) {
 
   const makePie = (d) => ({
     labels: d.map(x => x.l),
-    datasets: [{ data: d.map(x => x.v), backgroundColor: PIE_COLORS, borderWidth: 2, borderColor: "#fff", hoverOffset: 6 }]
+    datasets: [{ data: d.map(x => x.v), backgroundColor: generateColors(d.length), borderWidth: 2, borderColor: "#fff", hoverOffset: 6 }]
   });
 
   const makeBar = (d) => ({
     labels: d.map(x => x.l),
-    datasets: [{ data: d.map(x => x.v), backgroundColor: ["#2563EB", "#3B82F6", "#60A5FA", "#93C5FD", "#10B981", "#34D399"], borderRadius: 6, borderSkipped: false }]
+    datasets: [{ data: d.map(x => x.v), backgroundColor: generateColors(d.length), borderRadius: 6, borderSkipped: false }]
   });
 
   const selectedName = employees.find(e => e.id === selected)?.name;

@@ -148,6 +148,8 @@ export default function TimeEntry({ user, onWorkLogged }) {
   const [submitted, setSubmitted]         = useState(null);
   const [pendingRequests, setPendingRequests] = useState([]);
   const [errors, setErrors]               = useState({});
+  const [draftEntryId, setDraftEntryId]   = useState(null); // ID of existing Draft for selected date
+  const [savedDrafts, setSavedDrafts]     = useState([]); // List of all drafts for user
 
   const isAbsent = form.status === "AB";
 
@@ -193,6 +195,7 @@ export default function TimeEntry({ user, onWorkLogged }) {
         const entries = await res.json();
         const map = {}; // { YYYY-MM-DD: totalMins }
         entries.forEach(e => {
+          if (e.approvalStatus === "Draft") return; // Exclude drafts from calendar calculations
           const d = e.date;
           const mins = (e.regularMins || 0) + (e.overtimeMins || 0);
           map[d] = (map[d] || 0) + mins;
@@ -233,6 +236,7 @@ export default function TimeEntry({ user, onWorkLogged }) {
   useEffect(() => {
     fetchDailyLimit(selectedDate);
     fetchDraftEntry(selectedDate);
+    fetchAllDrafts();
     const d = new Date(selectedDate);
     if (!isNaN(d.getTime())) {
       const newMonthStart = new Date(d.getFullYear(), d.getMonth(), 1);
@@ -289,6 +293,8 @@ export default function TimeEntry({ user, onWorkLogged }) {
         const entries = await res.json();
         const draft = entries.find(e => e.approvalStatus === "Draft");
         if (draft) {
+          // Restore draft into form and remember its ID
+          setDraftEntryId(draft.id);
           setForm({
             shift: draft.shift || "B",
             status: draft.status || "P",
@@ -302,11 +308,64 @@ export default function TimeEntry({ user, onWorkLogged }) {
             overtimeMins: draft.overtimeMins ? draft.overtimeMins % 60 : "",
             remarks: draft.remarks || ""
           });
+        } else {
+          // No draft for this date — clear any previously loaded draft state
+          setDraftEntryId(null);
+          setForm({
+            shift: "B", status: "P",
+            workCategoryId: null, category: "",
+            subCategoryId: null, subCategory: "",
+            regularHrs: "", regularMins: "", overtimeHrs: "", overtimeMins: "", remarks: ""
+          });
+          setErrors({});
         }
       }
     } catch (err) {
       console.warn("Failed to fetch draft entry", err);
     }
+  };
+
+  const fetchAllDrafts = async () => {
+    if (!user?.id) return;
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    try {
+      const res = await fetch(
+        `${config.API_URL}/time-entries?approvalStatus=Draft&empId=${user.id}`,
+        { headers: { "Authorization": `Bearer ${token}` } }
+      );
+      if (res.ok) setSavedDrafts(await res.json());
+    } catch (err) {
+      console.warn("Failed to fetch all drafts", err);
+    }
+  };
+
+  const handleDeleteDraft = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this draft?")) return;
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    try {
+      const res = await fetch(`${config.API_URL}/time-entries/${id}`, {
+        method: "DELETE",
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (res.ok) {
+        fetchAllDrafts();
+        if (draftEntryId === id) {
+           // Current draft was deleted, reset the form for the selected date
+           fetchDraftEntry(selectedDate);
+        }
+      } else {
+        alert("Failed to delete draft.");
+      }
+    } catch (err) {
+      alert("Failed to delete draft.");
+    }
+  };
+
+  const handleOpenDraft = (draft) => {
+    setSelectedDate(draft.date);
+    // Changing selectedDate automatically triggers fetchDraftEntry via useEffect
   };
 
 
@@ -379,6 +438,50 @@ export default function TimeEntry({ user, onWorkLogged }) {
 
     (async () => {
       try {
+        if (isDraft && draftEntryId) {
+          // Update the existing draft (PATCH via PUT update endpoint)
+          const updateRes = await fetch(`${config.API_URL}/time-entries/${draftEntryId}`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              shift: form.shift,
+              status: form.status,
+              category: form.category,
+              subCategory: form.subCategory,
+              workCategoryId: form.workCategoryId || undefined,
+              subCategoryId: form.subCategoryId || undefined,
+              regularMins: regularTotalMins,
+              overtimeMins: overtimeTotalMins,
+              remarks: form.remarks,
+              approvalStatus: "Draft"
+            })
+          });
+          if (updateRes.ok) {
+            setSubmitted("draft");
+            setTimeout(() => setSubmitted(null), 4000);
+          } else {
+            const errData = await updateRes.json();
+            alert(errData.detail || "Failed to update draft.");
+          }
+          return;
+        }
+
+        // If submitting for real AND a draft exists for this date, delete it first
+        if (!isDraft && draftEntryId) {
+          try {
+            await fetch(`${config.API_URL}/time-entries/${draftEntryId}`, {
+              method: "DELETE",
+              headers: { "Authorization": `Bearer ${token}` }
+            });
+          } catch (_) {
+            // Non-fatal: proceed with submission even if draft delete fails
+          }
+          setDraftEntryId(null);
+        }
+
         const res = await fetch(`${config.API_URL}/time-entries`, {
           method: "POST",
           headers: {
@@ -391,6 +494,7 @@ export default function TimeEntry({ user, onWorkLogged }) {
         if (res.ok) {
           const created = await res.json();
           if (isDraft) {
+            setDraftEntryId(created.id); // Remember new draft ID
             setSubmitted("draft");
           } else if (created.approvalStatus === "Pending") {
             setSubmitted("approval");
@@ -400,15 +504,18 @@ export default function TimeEntry({ user, onWorkLogged }) {
             if (onWorkLogged) onWorkLogged(selectedDate, effectiveRegularMins, autoOvertimeMins);
           }
           setTimeout(()=>setSubmitted(null), 4000);
-          // Reset form
-          setForm({
-            shift: "B", status: "P",
-            workCategoryId: null,
-            category: "",
-            subCategoryId: null, subCategory: "",
-            regularHrs: "", regularMins: "", overtimeHrs: "", overtimeMins: "", remarks: ""
-          });
-          setErrors({});
+          if (!isDraft) {
+            // Only reset form on final submission, not on draft save
+            setDraftEntryId(null);
+            setForm({
+              shift: "B", status: "P",
+              workCategoryId: null,
+              category: "",
+              subCategoryId: null, subCategory: "",
+              regularHrs: "", regularMins: "", overtimeHrs: "", overtimeMins: "", remarks: ""
+            });
+            setErrors({});
+          }
         } else {
           const errData = await res.json();
           alert(errData.detail || "Failed to submit entry.");
@@ -434,6 +541,7 @@ export default function TimeEntry({ user, onWorkLogged }) {
                 <span><strong>Date:</strong> {r.date}</span>
                 <span><strong>Shift:</strong> {r.shift}</span>
                 <span><strong>Category:</strong> {r.category}</span>
+                {r.subCategory && <span><strong>Sub Category:</strong> {r.subCategory}</span>}
                 <span><strong>Worked:</strong> {minsToHM((r.regularMins || 0) + (r.overtimeMins || 0))}</span>
                 <span style={{ marginLeft:"auto", background:"#fef3c7", color:"#d97706", borderRadius:10, padding:"1px 8px", fontWeight:700, fontSize:11 }}>Pending</span>
               </div>
@@ -445,10 +553,50 @@ export default function TimeEntry({ user, onWorkLogged }) {
         {submitted==="approval" && <div className="alert alert-warning">⏳ Late entry — approval request sent to admin.</div>}
         {submitted==="draft" && <div className="alert alert-info">📝 Draft saved successfully!</div>}
 
+        {/* Saved Drafts Panel */}
+        <div style={{ marginBottom: 20 }}>
+          <h4 style={{ fontSize: 16, fontWeight: 700, color: "#1e293b", marginBottom: 12 }}>Saved Drafts</h4>
+          {savedDrafts.length === 0 ? (
+            <p style={{ fontSize: 13, color: "#64748b", fontStyle: "italic" }}>No saved drafts.</p>
+          ) : (
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+              {savedDrafts.map(draft => (
+                <div key={draft.id} style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, padding: 14, minWidth: 260, flex: "1 1 260px", maxWidth: 350, boxShadow: "0 1px 2px rgba(0,0,0,0.05)" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 14, color: "#0f172a" }}>{draft.date}</div>
+                      <div style={{ fontSize: 12, color: "#64748b" }}>Shift {draft.shift}</div>
+                    </div>
+                    <span style={{ background: "#e2e8f0", color: "#475569", fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 12 }}>Draft</span>
+                  </div>
+                  <div style={{ fontSize: 12, color: "#334155", marginBottom: 4 }}>
+                    <strong>Category:</strong> {draft.category || "—"}<br/>
+                    <strong>Sub Task:</strong> {draft.subCategory || "—"}
+                  </div>
+                  <div style={{ fontSize: 12, color: "#475569", marginBottom: 12, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                    <em>{draft.remarks || "No remarks"}</em>
+                  </div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button type="button" onClick={() => handleOpenDraft(draft)} className="btn btn-sm btn-outline-primary" style={{ flex: 1, fontSize: 12 }}>Open</button>
+                    <button type="button" onClick={() => handleDeleteDraft(draft.id)} className="btn btn-sm btn-outline-danger" style={{ fontSize: 12 }}>Delete</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         <form onSubmit={(e) => handleSubmit(e, false)}>
           <div className="row g-4">
             <div className="col-lg-8">
               <div style={{ background:"#fff", border:"1px solid #e2e8f0", borderRadius:12, padding:"24px 28px", boxShadow:"0 1px 3px rgba(0,0,0,0.06)" }}>
+
+                {/* Editing Draft Badge */}
+                {draftEntryId && (
+                  <div style={{ marginBottom: 16, background: "#fef9c3", border: "1px solid #fde047", borderRadius: 8, padding: "8px 12px", display: "inline-block", fontSize: 13, fontWeight: 600, color: "#854d0e" }}>
+                    🟡 Editing Draft for {selectedDate}
+                  </div>
+                )}
 
                 {/* Email */}
                 <div style={{ marginBottom:18 }}>

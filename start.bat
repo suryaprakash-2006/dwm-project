@@ -60,7 +60,7 @@ timeout /t 8 >nul
 
 :: ── Start Frontend ────────────────────────────────────────────────
 
-echo [3/3] Starting Frontend (port 53005)...
+echo [3/3] Starting/Building Frontend (port 53005)...
 
 :: Ensure frontend dependencies are installed locally
 if not exist "%FRONTEND_DIR%\node_modules\react-scripts\bin\react-scripts.js" (
@@ -69,14 +69,12 @@ if not exist "%FRONTEND_DIR%\node_modules\react-scripts\bin\react-scripts.js" (
     cd /d "%FRONTEND_DIR%" && call npm.cmd install --no-audit --no-fund
 )
 
-:: Build if no build folder exists
-if not exist "%FRONTEND_DIR%\build\index.html" (
-    echo       Build folder missing - running npm run build first...
-    echo       This may take 3-5 minutes. Please wait.
-    start "DWM Frontend" cmd /k "cd /d ""%FRONTEND_DIR%"" && call npm.cmd run build && call npx.cmd -y serve -s build -l 53005 --no-clipboard"
-) else (
-    start "DWM Frontend" cmd /k "cd /d ""%FRONTEND_DIR%"" && call npx.cmd -y serve -s build -l 53005 --no-clipboard"
-)
+:: Build the React application every start
+echo       Building frontend production build...
+cd /d "%FRONTEND_DIR%" && call npm.cmd run build
+
+:: Start serve on port 53005
+start "DWM Frontend" cmd /k "cd /d ""%FRONTEND_DIR%"" && call npx.cmd -y serve -s build -l 53005 --no-clipboard"
 
 :: ── Done ──────────────────────────────────────────────────────────
 

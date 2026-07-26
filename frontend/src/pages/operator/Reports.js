@@ -4,6 +4,7 @@ import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import "../../styles/theme.css";
 import config from "../../config";
+import EditEntryModal from "../../components/EditEntryModal";
 
 const StatusBadge = ({ status }) => {
   const m = { P:{label:"Present",bg:"#16a34a"}, L:{label:"Leave",bg:"#dc2626"}, OD:{label:"On Duty",bg:"#d97706"}, HD:{label:"Half Day",bg:"#2563eb"} };
@@ -48,7 +49,7 @@ export default function Reports() {
   const [activeFilters, setActiveFilters] = useState({});
   const [loading,       setLoading]       = useState(false);
   const [dateError,     setDateError]     = useState("");
-  const [editModal,     setEditModal]     = useState({ open: false, entryId: null, newDescription: "" });
+  const [editingEntry,  setEditingEntry]  = useState(null);
 
   const user = JSON.parse(localStorage.getItem("user") || "{}");
 
@@ -159,26 +160,6 @@ export default function Reports() {
     setDateError("");
     setActiveFilters({});
     fetchEntries();
-  };
-
-  const handleEditRequest = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      const res = await fetch(`${config.API_URL}/entry-edit-requests`, {
-        method: "POST",
-        headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ timeEntryId: editModal.entryId, newDescription: editModal.newDescription })
-      });
-      if (res.ok) {
-        alert("Edit request submitted successfully.");
-      } else {
-        alert("Failed to submit edit request.");
-      }
-    } catch (err) {
-      alert("Error submitting request.");
-    } finally {
-      setEditModal({ open: false, entryId: null, newDescription: "" });
-    }
   };
 
   // ---------- Exports ----------
@@ -371,6 +352,11 @@ export default function Reports() {
         )}
       </div>
 
+      <div className="d-flex gap-2 mb-3">
+        <button onClick={exportExcel} className="btn btn-outline-primary btn-sm">Export Excel</button>
+        <button onClick={exportPDF} className="btn btn-outline-primary btn-sm">Export PDF</button>
+        <button onClick={exportJSON} className="btn btn-outline-primary btn-sm">Export JSON</button>
+      </div>
       {/* Active filter summary */}
       {Object.keys(activeFilters).length > 0 && (
         <div style={{ marginBottom:14, padding:"10px 16px", background:"#dbeafe", borderRadius:8, border:"1px solid #93c5fd", fontSize:13, color:"#1d4ed8" }}>
@@ -381,9 +367,9 @@ export default function Reports() {
 
       {/* Table */}
       <div className="card" style={{ padding:0 }}>
-        <div className="table-responsive">
+        <div className="table-responsive" style={{ maxHeight: "600px", overflowY: "auto" }}>
           <table className="table table-bordered mb-0 align-middle">
-            <thead>
+            <thead style={{ position: "sticky", top: 0, zIndex: 1, backgroundColor: "#f8fafc" }}>
               <tr>
                 <th>DATE</th>
                 <th>SHIFT</th>
@@ -442,7 +428,7 @@ export default function Reports() {
                       <td><StatusBadge status={r.status} /></td>
                       <td
                         style={{
-                          maxWidth: '200px',
+                          minWidth: '280px', maxWidth: '350px',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
                           whiteSpace: 'nowrap',
@@ -455,7 +441,7 @@ export default function Reports() {
                         {(r.approvalStatus === "Pending" || r.approvalStatus === "Approved") && (
                           <button
                             className="btn btn-sm btn-outline-primary"
-                            onClick={() => setEditModal({ open: true, entryId: r.id, newDescription: "" })}
+                            onClick={() => setEditingEntry(r)}
                           >
                             Edit
                           </button>
@@ -470,35 +456,22 @@ export default function Reports() {
         </div>
       </div>
 
-      <div className="d-flex gap-2 mt-3">
-        <button onClick={exportJSON}  className="btn btn-outline-primary btn-sm">Export JSON</button>
-        <button onClick={exportPDF}   className="btn btn-outline-primary btn-sm">Export PDF</button>
-        <button onClick={exportExcel} className="btn btn-outline-primary btn-sm">Export Excel (.xlsx)</button>
-      </div>
-
       {/* Edit Modal */}
-      {editModal.open && (
-        <div style={{
-          position: "fixed", top: 0, left: 0, width: "100%", height: "100%",
-          background: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000
-        }}>
-          <div style={{ background: "#fff", padding: "20px", borderRadius: "8px", width: "400px" }}>
-            <h5>Request Edit</h5>
-            <div className="mb-3">
-              <label>New Description / Reason</label>
-              <textarea
-                className="form-control"
-                rows={3}
-                value={editModal.newDescription}
-                onChange={e => setEditModal({ ...editModal, newDescription: e.target.value })}
-              ></textarea>
-            </div>
-            <div className="d-flex justify-content-end gap-2">
-              <button className="btn btn-secondary" onClick={() => setEditModal({ open: false, entryId: null, newDescription: "" })}>Cancel</button>
-              <button className="btn btn-primary" onClick={handleEditRequest}>Submit Request</button>
-            </div>
-          </div>
-        </div>
+      {editingEntry && (
+        <EditEntryModal
+          entry={editingEntry}
+          onClose={() => setEditingEntry(null)}
+          onSave={() => {
+            setEditingEntry(null);
+            fetchEntries({
+              dateFrom: tempDateFrom,
+              dateTo: tempDateTo,
+              machine: tempMachine,
+              categoryId: tempCategoryId,
+              subCategoryId: tempSubCategoryId
+            });
+          }}
+        />
       )}
     </div>
   );

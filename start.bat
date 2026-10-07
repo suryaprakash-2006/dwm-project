@@ -1,4 +1,9 @@
 @echo off
+if /i not "%~1"=="--background" (
+    wscript.exe "%~dp0run_hidden.vbs" --batch "%~f0" "%~dp0start.log"
+    exit /b
+)
+shift
 setlocal
 
 echo.
@@ -22,7 +27,6 @@ if not exist "%BACKEND_DIR%\.env" (
     ) else (
         echo [ERROR] backend\.env not found!
         echo         Please create backend\.env before starting.
-        pause
         exit /b 1
     )
 )
@@ -31,7 +35,6 @@ if not exist "%BACKEND_DIR%\.env" (
 if not exist "%BACKEND_DIR%\dwmvenv\Scripts\uvicorn.exe" (
     echo [ERROR] Python virtual environment not found or incomplete.
     echo         Please run: cd backend ^&^& python -m venv dwmvenv ^&^& dwmvenv\Scripts\pip install -r requirements.txt
-    pause
     exit /b 1
 )
 
@@ -52,7 +55,7 @@ timeout /t 2 >nul
 :: ── Start Backend ─────────────────────────────────────────────────
 
 echo [1/3] Starting Backend (port 58010)...
-cscript //nologo "%~dp0run_hidden.vbs" cmd.exe /c cd /d "%BACKEND_DIR%" ^&^& "%BACKEND_DIR%\dwmvenv\Scripts\uvicorn.exe" app.main:app --host 0.0.0.0 --port 58010 --lifespan off
+cscript //nologo "%~dp0run_hidden.vbs" "%ComSpec%" /c cd /d "%BACKEND_DIR%" ^&^& "%BACKEND_DIR%\dwmvenv\Scripts\uvicorn.exe" app.main:app --host 0.0.0.0 --port 58010 --lifespan off ^>^> "%ROOT_DIR%backend.log" 2^>^&1
 
 :: Wait for backend to initialize before starting frontend
 echo [2/3] Waiting 8 seconds for backend to initialize...
@@ -67,14 +70,22 @@ if not exist "%FRONTEND_DIR%\node_modules\react-scripts\bin\react-scripts.js" (
     echo       Frontend dependencies missing - running npm install...
     echo       This may take 3-5 minutes. Please wait.
     cd /d "%FRONTEND_DIR%" && call npm.cmd install --no-audit --no-fund
+    if errorlevel 1 (
+        echo [ERROR] Frontend dependency installation failed. See start.log.
+        exit /b 1
+    )
 )
 
 :: Build the React application every start
 echo       Building frontend production build...
 cd /d "%FRONTEND_DIR%" && call npm.cmd run build
+if errorlevel 1 (
+    echo [ERROR] Frontend build failed. See start.log.
+    exit /b 1
+)
 
 :: Start serve on port 53005
-start "DWM Frontend" cmd /k "cd /d ""%FRONTEND_DIR%"" && call npx.cmd -y serve -s build -l 53005 --no-clipboard"
+cscript //nologo "%ROOT_DIR%run_hidden.vbs" "%ComSpec%" /c cd /d "%FRONTEND_DIR%" ^&^& call npx.cmd -y serve -s build -l 53005 --no-clipboard ^>^> "%ROOT_DIR%frontend.log" 2^>^&1
 
 :: ── Done ──────────────────────────────────────────────────────────
 
@@ -88,6 +99,7 @@ echo   Backend   :  http://192.168.5.22:58010
 echo   API Docs  :  http://192.168.5.22:58010/docs
 echo   Network Access: http://192.168.5.22:58010 and http://192.168.5.22:53005
 echo.
+echo   Logs      :  start.log, backend.log, frontend.log
 echo   Run stop.bat to shut down both servers.
 echo.
-exit
+exit /b

@@ -114,7 +114,7 @@ def create_time_entry(
     """
     Submits a daily time entry log.
     - Future dates are blocked.
-    - If date is >3 days in the past, marks as 'Pending' approval and alerts ADMINS.
+    - If date is more than 5 days in the past, marks as 'Pending' approval and alerts ADMINS.
     - Regular hours capped at MAX_REGULAR_HOURS_PER_DAY (8h). Excess is NOT silently converted.
     - Overtime hours capped at MAX_OVERTIME_HOURS_PER_DAY (8h). Excess is rejected.
     - Total (regular + overtime) cannot exceed MAX_TOTAL_HOURS_PER_DAY (16h).

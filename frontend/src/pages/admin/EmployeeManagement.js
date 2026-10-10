@@ -539,7 +539,7 @@ export default function EmployeeManagement({ adminUser }) {
           <>
             <div style={{ background:"#fffbeb", border:"1px solid #fde68a", borderRadius:8, padding:"10px 16px", marginBottom:16 }}>
               <p style={{ fontSize:12.5, color:"#92400e", margin:0, fontWeight:500 }}>
-                ℹ️ Entries submitted more than <strong>3 days</strong> late need your approval. You have <strong>10 days</strong> to approve or reject.
+                ℹ️ Entries submitted more than <strong>5 days</strong> late need your approval. There is no time limit to approve or reject.
               </p>
             </div>
             {lateReqs.length===0?(

@@ -135,7 +135,7 @@ class BusinessLogicService:
 
         Business Rules:
           - Future dates are rejected.
-          - If entry is submitted >3 days after target date, marks as 'Pending'.
+          - If entry is submitted >5 days after target date, marks as 'Pending'.
           - Otherwise auto-approved ('Approved').
           - MAX regular hours: MAX_REGULAR_HOURS_PER_DAY (8h) per day per employee.
           - MAX overtime hours: MAX_OVERTIME_HOURS_PER_DAY (8h) per day per employee.
@@ -165,7 +165,7 @@ class BusinessLogicService:
 
         # Determine approval status based on delay
         if entry_data.get("approvalStatus") != "Draft":
-            if delta.days > 3:
+            if delta.days > 5:
                 entry_data["approvalStatus"] = "Pending"
             else:
                 entry_data["approvalStatus"] = "Approved"

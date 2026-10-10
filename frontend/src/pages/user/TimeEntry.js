@@ -21,9 +21,15 @@ function formatDate(d) {
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
 }
-function getLast14Days() {
-  const days=[];
-  for(let i=0;i<14;i++) { const d=new Date(TODAY); d.setDate(TODAY.getDate()-i); days.push(formatDate(d)); }
+function getEntryDateOptions(selectedDate) {
+  const days = [];
+  for (let i = 0; i < 14; i++) {
+    const d = new Date(TODAY);
+    d.setDate(TODAY.getDate() - i);
+    days.push(formatDate(d));
+  }
+  if (!days.includes(selectedDate)) days.push(selectedDate);
+  days.sort((a, b) => b.localeCompare(a));
   return days;
 }
 function minsToHM(mins) {
@@ -389,7 +395,7 @@ export default function TimeEntry({ user, onWorkLogged }) {
   };
 
   const diff = daysDiff(selectedDate);
-  const entryMode = diff<=3?"direct":diff<=10?"approval":"blocked";
+  const entryMode = diff<=5?"direct":"approval";
 
   // Real remaining mins for the selected date (from API), or fallback to form-input calc
   const apiRemainingMins = dailyLimit ? dailyLimit.remainingRegularMins : null;
@@ -414,7 +420,6 @@ export default function TimeEntry({ user, onWorkLogged }) {
 
   const handleSubmit = (e, isDraft = false) => {
     if (e) e.preventDefault();
-    if (entryMode==="blocked") return;
     if (!validate(isDraft)) return;
 
     const token = localStorage.getItem("token");
@@ -611,7 +616,7 @@ export default function TimeEntry({ user, onWorkLogged }) {
                   <div>
                     <label style={{ display:"block", fontWeight:600, fontSize:13, color:"#475569", marginBottom:6 }}>Entry Date</label>
                     <select className="form-select" value={selectedDate} onChange={(e)=>setSelectedDate(e.target.value)}>
-                      {getLast14Days().map((d)=>{
+                      {getEntryDateOptions(selectedDate).map((d)=>{
                         const df = daysDiff(d);
                         const lbl = df===0?"Today":df===1?"Yesterday":`${df} days ago`;
                         const totalMins = dateStatusMap[d] || 0;
@@ -621,7 +626,6 @@ export default function TimeEntry({ user, onWorkLogged }) {
                       })}
                     </select>
                     {entryMode==="approval" && <div style={{ marginTop:7, background:"#fffbeb", border:"1px solid #fde68a", borderRadius:7, padding:"7px 12px", fontSize:12.5, color:"#d97706", fontWeight:600 }}>⏳ Late entry — will be sent for admin approval.</div>}
-                    {entryMode==="blocked"  && <div style={{ marginTop:7, background:"#fef2f2", border:"1px solid #fecaca", borderRadius:7, padding:"7px 12px", fontSize:12.5, color:"#dc2626", fontWeight:600 }}>🚫 This date is too old. Contact your admin.</div>}
                   </div>
                   <div>
                     <label style={{ display:"block", fontWeight:600, fontSize:13, color:"#475569", marginBottom:6 }}>Shift</label>
@@ -631,8 +635,7 @@ export default function TimeEntry({ user, onWorkLogged }) {
                   </div>
                 </div>
 
-                {entryMode!=="blocked" && (
-                  <>
+                <>
                     {/* Attendance */}
                     <div style={{ marginBottom:18 }}>
                       <label style={{ display:"block", fontWeight:600, fontSize:13, color:"#475569", marginBottom:6 }}>Attendance Status</label>
@@ -769,8 +772,7 @@ export default function TimeEntry({ user, onWorkLogged }) {
                         {isAbsent ? "📋 Record Absence" : entryMode==="approval" ? "⏳ Send for Approval" : "✓ Save & Submit"}
                       </button>
                     </div>
-                  </>
-                )}
+                </>
               </div>
             </div>
 
@@ -894,7 +896,7 @@ export default function TimeEntry({ user, onWorkLogged }) {
                                     onClick={() => {
                                       if (!isFuture) {
                                         const df = daysDiff(dateStr);
-                                        if (df >= 0 && df <= 14) {
+                                        if (df >= 0) {
                                           setSelectedDate(dateStr);
                                         }
                                       }
@@ -903,7 +905,7 @@ export default function TimeEntry({ user, onWorkLogged }) {
                                       width:"28px", height:"28px", lineHeight:"26px", margin:"auto", 
                                       background: bg, color: color, 
                                       border: border, 
-                                      cursor: isFuture || daysDiff(dateStr) > 14 ? "not-allowed" : "pointer",
+                                      cursor: isFuture ? "not-allowed" : "pointer",
                                       fontWeight: isSelected ? "bold" : "normal",
                                       borderRadius: "4px",
                                       boxShadow: isSelected ? "0 0 0 2px #fff, 0 0 0 4px #1d4ed8" : "none"
